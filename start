@@ -1,0 +1,2 @@
+// Compatibility entry point for Render services still configured with `node start`.
+require('./server.js');
