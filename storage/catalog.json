@@ -94,5 +94,336 @@
       ],
       "userId": "admin"
     }
+  ],
+  [
+    "21637134-8614-4c2f-a096-39aaf5f0ccbf",
+    {
+      "fileId": "21637134-8614-4c2f-a096-39aaf5f0ccbf",
+      "originalName": "restored_object_21637134.bin",
+      "mimeType": "application/octet-stream",
+      "size": 17,
+      "uploadedAt": "2026-09-26T01:38:46.663Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "21637134-8614-4c2f-a096-39aaf5f0ccbf_chunk_0.bin",
+          "size": 9,
+          "byteRange": [
+            0,
+            8
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c",
+          "asciiPreview": "hello upl",
+          "hash": "dcc043564538f77958e61cf4fd439abb0f9b7ceed2b48bd2778d8f1518197ba1",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "21637134-8614-4c2f-a096-39aaf5f0ccbf_chunk_1.bin",
+          "size": 8,
+          "byteRange": [
+            9,
+            16
+          ],
+          "hexPreview": "6f 61 64 20 74 65 73 74",
+          "asciiPreview": "oad test",
+          "hash": "8673b069edbcb6990ffd6d4f541804c3acf6506e5a4813a99d3f77e8527f6332",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
+  ],
+  [
+    "370887a5-3b54-4d55-b870-51ffc9a242c0",
+    {
+      "fileId": "370887a5-3b54-4d55-b870-51ffc9a242c0",
+      "originalName": "restored_object_370887a5.bin",
+      "mimeType": "application/octet-stream",
+      "size": 19,
+      "uploadedAt": "2026-09-26T01:38:46.663Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "370887a5-3b54-4d55-b870-51ffc9a242c0_chunk_0.bin",
+          "size": 10,
+          "byteRange": [
+            0,
+            9
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c 6f",
+          "asciiPreview": "hello uplo",
+          "hash": "3eb1c604992b7a6945b4d654402268e901c74ba0da5fae7dd39d302feac5b581",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "370887a5-3b54-4d55-b870-51ffc9a242c0_chunk_1.bin",
+          "size": 9,
+          "byteRange": [
+            10,
+            18
+          ],
+          "hexPreview": "61 64 20 74 65 73 74 0d 0a",
+          "asciiPreview": "ad test..",
+          "hash": "887430d3fecb3253a765616e3fceb5cc827b7e5b844d6a21826df0a9397bba83",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
+  ],
+  [
+    "4b9b091c-b5f6-4cc0-aed5-e0b2190f1bd2",
+    {
+      "fileId": "4b9b091c-b5f6-4cc0-aed5-e0b2190f1bd2",
+      "originalName": "restored_object_4b9b091c.bin",
+      "mimeType": "application/octet-stream",
+      "size": 17,
+      "uploadedAt": "2026-09-26T01:38:46.664Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "4b9b091c-b5f6-4cc0-aed5-e0b2190f1bd2_chunk_0.bin",
+          "size": 9,
+          "byteRange": [
+            0,
+            8
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c",
+          "asciiPreview": "hello upl",
+          "hash": "dcc043564538f77958e61cf4fd439abb0f9b7ceed2b48bd2778d8f1518197ba1",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "4b9b091c-b5f6-4cc0-aed5-e0b2190f1bd2_chunk_1.bin",
+          "size": 8,
+          "byteRange": [
+            9,
+            16
+          ],
+          "hexPreview": "6f 61 64 20 74 65 73 74",
+          "asciiPreview": "oad test",
+          "hash": "8673b069edbcb6990ffd6d4f541804c3acf6506e5a4813a99d3f77e8527f6332",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
+  ],
+  [
+    "b8007a87-d36e-48db-8a76-fd023a1c5da4",
+    {
+      "fileId": "b8007a87-d36e-48db-8a76-fd023a1c5da4",
+      "originalName": "restored_object_b8007a87.bin",
+      "mimeType": "application/octet-stream",
+      "size": 17,
+      "uploadedAt": "2026-09-26T01:38:46.664Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "b8007a87-d36e-48db-8a76-fd023a1c5da4_chunk_0.bin",
+          "size": 9,
+          "byteRange": [
+            0,
+            8
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c",
+          "asciiPreview": "hello upl",
+          "hash": "dcc043564538f77958e61cf4fd439abb0f9b7ceed2b48bd2778d8f1518197ba1",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "b8007a87-d36e-48db-8a76-fd023a1c5da4_chunk_1.bin",
+          "size": 8,
+          "byteRange": [
+            9,
+            16
+          ],
+          "hexPreview": "6f 61 64 20 74 65 73 74",
+          "asciiPreview": "oad test",
+          "hash": "8673b069edbcb6990ffd6d4f541804c3acf6506e5a4813a99d3f77e8527f6332",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
+  ],
+  [
+    "c6d664cb-59dd-4e8e-a58c-48fa73913824",
+    {
+      "fileId": "c6d664cb-59dd-4e8e-a58c-48fa73913824",
+      "originalName": "restored_object_c6d664cb.bin",
+      "mimeType": "application/octet-stream",
+      "size": 17,
+      "uploadedAt": "2026-09-26T01:38:46.664Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "c6d664cb-59dd-4e8e-a58c-48fa73913824_chunk_0.bin",
+          "size": 9,
+          "byteRange": [
+            0,
+            8
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c",
+          "asciiPreview": "hello upl",
+          "hash": "dcc043564538f77958e61cf4fd439abb0f9b7ceed2b48bd2778d8f1518197ba1",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "c6d664cb-59dd-4e8e-a58c-48fa73913824_chunk_1.bin",
+          "size": 8,
+          "byteRange": [
+            9,
+            16
+          ],
+          "hexPreview": "6f 61 64 20 74 65 73 74",
+          "asciiPreview": "oad test",
+          "hash": "8673b069edbcb6990ffd6d4f541804c3acf6506e5a4813a99d3f77e8527f6332",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
+  ],
+  [
+    "d1cc2fce-54a2-4d90-a232-92b3c99e79ed",
+    {
+      "fileId": "d1cc2fce-54a2-4d90-a232-92b3c99e79ed",
+      "originalName": "restored_object_d1cc2fce.bin",
+      "mimeType": "application/octet-stream",
+      "size": 19,
+      "uploadedAt": "2026-09-26T01:38:46.664Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "d1cc2fce-54a2-4d90-a232-92b3c99e79ed_chunk_0.bin",
+          "size": 10,
+          "byteRange": [
+            0,
+            9
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c 6f",
+          "asciiPreview": "hello uplo",
+          "hash": "3eb1c604992b7a6945b4d654402268e901c74ba0da5fae7dd39d302feac5b581",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "d1cc2fce-54a2-4d90-a232-92b3c99e79ed_chunk_1.bin",
+          "size": 9,
+          "byteRange": [
+            10,
+            18
+          ],
+          "hexPreview": "61 64 20 74 65 73 74 0d 0a",
+          "asciiPreview": "ad test..",
+          "hash": "887430d3fecb3253a765616e3fceb5cc827b7e5b844d6a21826df0a9397bba83",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
+  ],
+  [
+    "bd25376e-99e6-43cd-b313-511303354463",
+    {
+      "fileId": "bd25376e-99e6-43cd-b313-511303354463",
+      "userId": "user_alice",
+      "owner": "Alice Morgan",
+      "originalName": "demo.txt",
+      "mimeType": "text/plain",
+      "size": 17,
+      "uploadedAt": "2026-09-26T01:39:24.612Z",
+      "replicationFactor": 3,
+      "chunks": [
+        {
+          "index": 0,
+          "filename": "bd25376e-99e6-43cd-b313-511303354463_chunk_0.bin",
+          "size": 9,
+          "byteRange": [
+            0,
+            8
+          ],
+          "hexPreview": "68 65 6c 6c 6f 20 75 70 6c",
+          "asciiPreview": "hello upl",
+          "hash": "dcc043564538f77958e61cf4fd439abb0f9b7ceed2b48bd2778d8f1518197ba1",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        },
+        {
+          "index": 1,
+          "filename": "bd25376e-99e6-43cd-b313-511303354463_chunk_1.bin",
+          "size": 8,
+          "byteRange": [
+            9,
+            16
+          ],
+          "hexPreview": "6f 61 64 20 74 65 73 74",
+          "asciiPreview": "oad test",
+          "hash": "8673b069edbcb6990ffd6d4f541804c3acf6506e5a4813a99d3f77e8527f6332",
+          "replicas": [
+            "node_1",
+            "node_2",
+            "node_3"
+          ]
+        }
+      ]
+    }
   ]
 ]

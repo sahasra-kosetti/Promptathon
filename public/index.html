@@ -2624,6 +2624,9 @@
       try {
         const res = await fetch('/api/upload', {
           method: 'POST',
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          },
           body: formData
         });
 

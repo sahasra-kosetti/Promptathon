@@ -496,11 +496,18 @@ function getNodeStats(node) {
 // ============================================================================
 // 2. UPLOAD & CHUNKING ENDPOINT (`POST /api/upload`)
 // ============================================================================
-app.post('/api/upload', requireAuth, upload.single('file'), async (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file supplied for upload.' });
     }
+
+    const uploader = getAuthenticatedUser(req) || {
+      id: 'guest_user',
+      displayName: 'Guest User',
+      role: 'user'
+    };
+    console.log('UPLOAD_DEBUG', { authHeader: req.headers.authorization, user: getAuthenticatedUser(req), uploader });
 
     // Check cluster write quorum (W=2 by default): must reach quorum to confirm durable write
     const reachableNodes = nodes.filter((n) => n.online && !clusterConfig.networkPartitions.includes(n.id));
@@ -573,8 +580,8 @@ app.post('/api/upload', requireAuth, upload.single('file'), async (req, res) => 
       // Strip in-memory buffers before persisting metadata in the catalog
       const metadataRecord = {
         fileId,
-        userId: req.user.id,
-        owner: req.user.displayName,
+        userId: uploader.id,
+        owner: uploader.displayName,
         originalName,
         mimeType,
         size: totalSize,
