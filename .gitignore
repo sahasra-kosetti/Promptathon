@@ -4,3 +4,4 @@ node_modules/
 npm-debug.log*
 storage/catalog.json
 storage/node_*/
+tmp-upload-*.txt

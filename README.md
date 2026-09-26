@@ -129,7 +129,17 @@ The service adds standard HTTP security headers, authentication and per-user obj
 
 ---
 
-## 🚀 Getting Started & Installation
+## � Default Login Credentials
+
+Use the following credentials to sign in to the dashboard:
+
+- Admin: `admin` / `admin123`
+- User: `alice` / `demo123`
+- User: `bob` / `demo123`
+
+These are the default demo accounts configured for the app.
+
+## �🚀 Getting Started & Installation
 
 ### Prerequisites
 - Node.js (v18.0.0 or higher)

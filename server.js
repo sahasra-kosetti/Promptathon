@@ -627,8 +627,8 @@ app.post('/api/upload', requireAuth, uploadRateLimit, upload.single('file'), asy
       // Strip in-memory buffers before persisting metadata in the catalog
       const metadataRecord = {
         fileId,
-        userId: req.user.id,
-        owner: req.user.displayName,
+        userId: uploader.id,
+        owner: uploader.displayName,
         originalName,
         mimeType,
         size: totalSize,
