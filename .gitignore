@@ -2,3 +2,5 @@ node_modules/
 .env
 .DS_Store
 npm-debug.log*
+storage/catalog.json
+storage/node_*/

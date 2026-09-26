@@ -270,17 +270,19 @@ DELETE /api/file/:fileId
 
 ## ☁️ Deployment (Render Free Tier)
 
-Vault is pre-configured for one-click deployment on **Render Web Services**:
+The repository includes a root-level `render.yaml` Blueprint for deploying this Node.js web service. Connect the repository in the Render Dashboard and create a Blueprint to use it.
 
 1. Push your repository to GitHub or GitLab.
 2. In the [Render Dashboard](https://dashboard.render.com), click **New +** -> **Web Service**.
 3. Select your repository.
-4. Configure the settings:
+4. If creating a Web Service manually, configure the settings:
    - **Environment**: `Node`
    - **Build Command**: `npm install`
-   - **Start Command**: `node server.js`
+    - **Start Command**: `npm start`
    - **Plan**: `Free`
 5. Click **Deploy Web Service**.
+
+If Render logs show `Running 'node start'`, change the service's **Start Command** in **Settings → Build & Deploy** to `npm start` and redeploy. `node start` looks for a JavaScript file named `start`; this project instead defines an npm `start` script that launches `server.js`.
 
 Render will automatically bind to `0.0.0.0` and allocate `process.env.PORT`.
 
