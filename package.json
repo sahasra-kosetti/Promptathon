@@ -1,0 +1,33 @@
+{
+  "name": "vault-distributed-storage",
+  "version": "1.0.0",
+  "description": "Fault-tolerant distributed object storage proof-of-concept simulating an S3-like cluster with chunking, replication, and bit-rot recovery.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "distributed-systems",
+    "s3",
+    "object-storage",
+    "fault-tolerance",
+    "replication",
+    "sha256",
+    "bit-rot"
+  ],
+  "author": "Distributed Systems Engineer",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.4",
+    "express": "^4.19.2",
+    "fs": "0.0.1-security",
+    "multer": "^1.4.5-lts.1",
+    "path": "^0.12.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

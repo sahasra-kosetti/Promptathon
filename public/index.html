@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VAULT // Distributed Fault-Tolerant Object Storage</title>
+  <!-- Modern Monospace & UI Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-void: #000000;
+      --color-bone-white: #ffffff;
+      --color-ash-gray: #9a9a9a;
+      --color-silver-mist: #bdbdbd;
+      --color-electric-iris: #8052ff;
+      --color-saffron-spark: #ffb829;
+      --color-deep-verdant: #15846e;
+
+      --bg-base: #000000;
+      --bg-surface: #09090b;
+      --bg-panel: rgba(18, 18, 20, 0.9);
+      --bg-soft: rgba(255, 255, 255, 0.03);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-bright: rgba(128, 82, 255, 0.45);
+
+      --accent-violet: #8052ff;
+      --accent-violet-soft: rgba(128, 82, 255, 0.18);
+      --accent-amber: #ffb829;
+      --accent-amber-soft: rgba(255, 184, 41, 0.14);
+      --accent-red: #ff426b;
+      --accent-red-soft: rgba(255, 66, 107, 0.12);
+      --accent-green: #2bd8a7;
+      --accent-green-soft: rgba(43, 216, 167, 0.12);
+
+      --text-main: #ffffff;
+      --text-muted: #9a9a9a;
+      --text-dim: #bdbdbd;
+
+      --font-sans: 'PPNeueMontreal', 'Inter', 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', monospace;
+      --font-display: 'PPNeueMontreal', 'Inter', 'Segoe UI', sans-serif;
+
+      --bg-shift-x: 0px;
+      --bg-shift-y: 0px;
+      --bg-rotate: 0deg;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(circle at 15% 15%, rgba(128, 82, 255, 0.16) 0%, transparent 20%),
+        radial-gradient(circle at 85% 18%, rgba(128, 82, 255, 0.10) 0%, transparent 18%),
+        radial-gradient(circle at 60% 80%, rgba(21, 132, 110, 0.08) 0%, transparent 18%);
+      letter-spacing: -0.01em;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -10% -8% auto auto;
+      width: 120vw;
+      height: 120vh;
+      pointer-events: none;
+      z-index: 0;
+      transition: transform 0.12s linear;
+      transform: translate(var(--bg-shift-x), var(--bg-shift-y)) rotate(var(--bg-rotate));
+      opacity: 0.9;
+    }
+
+    body::before {
+      background:
+        radial-gradient(circle at 20% 28%, rgba(128, 82, 255, 0.18), transparent 18%),
+        radial-gradient(circle at 55% 48%, rgba(38, 78, 255, 0.10), transparent 18%),
+        radial-gradient(circle at 84% 25%, rgba(255, 184, 41, 0.10), transparent 18%);
+      filter: blur(24px);
+    }
+
+    body::after {
+      inset: auto auto -10% -12%;
+      background:
+        radial-gradient(circle at 35% 62%, rgba(128, 82, 255, 0.14), transparent 18%),
+        radial-gradient(circle at 68% 75%, rgba(21, 132, 110, 0.1), transparent 20%);
+      filter: blur(30px);
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px 28px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    #appShell {
+      display: none;
+    }
+
+    body.auth-locked .container {
+      max-width: none;
+      padding: 0;
+    }
+
+    body.auth-locked header {
+      display: none !important;
+    }
+
+    body.auth-locked #appShell {
+      display: none !important;
+    }
+
+    .auth-screen {
+      min-height: 100vh;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 36px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    body.auth-locked .auth-screen {
+      display: flex;
+    }
+
+    #authPanel {
+      width: min(1100px, 100%);
+      min-height: min(760px, calc(100vh - 72px));
+      display: flex;
+      background: rgba(10, 12, 15, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.52), inset 0 1px 0 rgba(255,255,255,0.06);
+      backdrop-filter: blur(14px);
+    }
+
+    .auth-visual {
+      flex: 1.15;
+      position: relative;
+      background:
+        linear-gradient(140deg, rgba(128,82,255,0.22), rgba(6,8,12,0.10) 45%, rgba(21,132,110,0.12)),
+        radial-gradient(circle at 20% 25%, rgba(255,184,41,0.16), transparent 18%),
+        rgba(9, 9, 12, 0.95);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      padding: 44px 38px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .auth-orbit {
+      position: relative;
+      width: min(380px, 100%);
+      height: 370px;
+      margin: 24px auto 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.06), rgba(128,82,255,0.04) 35%, transparent 70%);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 0 30px rgba(128,82,255,0.12);
+    }
+
+    .auth-orbit::before,
+    .auth-orbit::after {
+      content: "";
+      position: absolute;
+      inset: 14% 16%;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 50%;
+      transform: rotate(18deg);
+    }
+
+    .auth-orbit::after {
+      inset: 28% 30%;
+      border-color: rgba(128,82,255,0.4);
+      box-shadow: 0 0 30px rgba(128,82,255,0.18);
+    }
+
+    .auth-core {
+      position: absolute;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(128,82,255,0.16) 24%, rgba(9,9,12,0.12) 62%, transparent 100%);
+      border: 1px solid rgba(128,82,255,0.40);
+      box-shadow: 0 0 28px rgba(128,82,255,0.20);
+    }
+
+    .auth-node {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 18px rgba(255,255,255,0.6);
+    }
+
+    .auth-node.one { top: 30%; left: 28%; background: #ffb829; }
+    .auth-node.two { top: 20%; right: 25%; background: #8052ff; }
+    .auth-node.three { bottom: 18%; left: 46%; background: #2bd8a7; }
+    .auth-node.four { bottom: 24%; right: 20%; background: #6cc8ff; }
+
+    .auth-copy {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-amber);
+      margin-bottom: 14px;
+    }
+
+    .auth-copy h2 {
+      font-size: clamp(2.8rem, 5vw, 4.5rem);
+      line-height: 0.94;
+      letter-spacing: -0.07em;
+      margin-bottom: 16px;
+      color: #fff;
+      max-width: 500px;
+    }
+
+    .auth-copy p {
+      max-width: 440px;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.72);
+    }
+
+    .auth-form-wrap {
+      flex: 0.85;
+      background: rgba(13, 15, 18, 0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 36px;
+    }
+
+    .auth-card {
+      width: min(420px, 100%);
+      background: rgba(14, 17, 22, 0.82);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 28px 24px 18px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .auth-card-header {
+      margin-bottom: 22px;
+    }
+
+    .auth-card-header .small-tag {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .auth-card-header h3 {
+      font-size: clamp(1.8rem, 2vw, 2.2rem);
+      line-height: 1.1;
+      letter-spacing: -0.06em;
+      margin-bottom: 8px;
+    }
+
+    .auth-card-header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    #loginForm {
+      display: grid;
+      gap: 18px;
+    }
+
+    .field-wrap {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field-wrap label {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .field-wrap input {
+      width: 100%;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: #fff;
+      font-size: 0.98rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .field-wrap input:focus {
+      outline: none;
+      border-color: rgba(128,82,255,0.7);
+      box-shadow: 0 0 0 4px rgba(128,82,255,0.12);
+      background: rgba(128,82,255,0.04);
+    }
+
+    .login-action {
+      width: 100%;
+      margin-top: 8px;
+      padding: 15px 18px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #8052ff, #6a6cff);
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(128,82,255,0.3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .login-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(128,82,255,0.36);
+    }
+
+    #loginMessage {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255, 66, 107, 0.08);
+      border: 1px solid rgba(255, 66, 107, 0.22);
+      color: #ff9ab3;
+      font-size: 0.83rem;
+      line-height: 1.5;
+    }
+
+    .auth-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .auth-footer .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 12px rgba(43,216,167,0.8);
+    }
+
+    /* Header & Telemetry Banner */
+    header {
+      border: 1px solid var(--border-subtle);
+      background: rgba(12, 12, 14, 0.74);
+      backdrop-filter: blur(16px);
+      border-radius: 999px;
+      padding: 18px 22px 16px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      position: relative;
+      z-index: 20;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 200px;
+      flex-shrink: 0;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(128, 82, 255, 0.20), rgba(21, 132, 110, 0.10));
+      box-shadow: 0 0 0 1px rgba(128, 82, 255, 0.6), 0 0 20px rgba(128, 82, 255, 0.2);
+      transform: rotate(45deg);
+    }
+
+    .brand-logo::before {
+      content: "";
+      width: 14px;
+      height: 14px;
+      border-left: 3px solid var(--color-bone-white);
+      border-bottom: 3px solid var(--color-bone-white);
+      transform: rotate(45deg) translate(0, 1px);
+      display: block;
+      border-radius: 2px;
+    }
+
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .brand-title h1 {
+      font-family: var(--font-display);
+      font-size: 28px;
+      letter-spacing: -0.06em;
+      color: var(--text-main);
+      line-height: 1;
+      font-weight: 700;
+      text-transform: none;
+    }
+
+    .brand-title p {
+      color: var(--text-muted);
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .site-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      flex: 1;
+      min-width: 120px;
+      flex-wrap: wrap;
+    }
+
+    .site-nav a {
+      text-decoration: none;
+      color: var(--color-ash-gray);
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      transition: color 0.2s ease, opacity 0.2s ease;
+      opacity: 0.9;
+    }
+
+    .site-nav a:hover {
+      color: var(--color-bone-white);
+    }
+
+    .nav-cta {
+      background: var(--color-electric-iris);
+      color: var(--color-bone-white);
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(128, 82, 255, 0.26);
+      flex-shrink: 0;
+    }
+
+    .cluster-metrics {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    .metric-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      border-left: 1px solid var(--border-subtle);
+      padding-left: 14px;
+      min-height: 42px;
+      justify-content: center;
+    }
+
+    .metric-badge span:first-child {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.18em;
+      line-height: 1.3;
+    }
+
+    .metric-badge span:last-child {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-bone-white);
+      letter-spacing: -0.05em;
+      line-height: 1.2;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      min-width: 180px;
+      justify-content: center;
+    }
+
+    .status-healthy {
+      background: rgba(43, 216, 167, 0.08);
+      color: #7cf2d3;
+      border: 1px solid rgba(43, 216, 167, 0.7);
+      box-shadow: 0 0 12px rgba(43, 216, 167, 0.2);
+    }
+
+    .status-degraded {
+      background: rgba(255, 184, 41, 0.08);
+      color: #ffd470;
+      border: 1px solid rgba(255, 184, 41, 0.7);
+      box-shadow: 0 0 12px rgba(255, 184, 41, 0.2);
+    }
+
+    .status-critical {
+      background: rgba(255, 66, 107, 0.08);
+      color: #ff7d99;
+      border: 1px solid rgba(255, 66, 107, 0.7);
+      box-shadow: 0 0 12px rgba(255, 66, 107, 0.2);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      display: inline-block;
+    }
+
+    .pulse {
+      animation: pulseAnimation 1.8s infinite;
+    }
+
+    @keyframes pulseAnimation {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Section Headers */
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 0;
+    }
+
+    .section-title h2 {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title h2::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-electric-iris);
+      box-shadow: 0 0 12px rgba(128, 82, 255, 0.8);
+      display: inline-block;
+    }
+
+    /* SECTION 1: CLUSTER STATUS NODES */
+    .nodes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .node-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      border-radius: 24px;
+      padding: 22px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+      box-shadow: none;
+    }
+
+    .node-card:hover {
+      border-color: rgba(128, 82, 255, 0.5);
+      background: rgba(128, 82, 255, 0.03);
+    }
+
+    .node-card.crashed {
+      border-color: rgba(255, 66, 107, 0.35);
+      background: rgba(255, 66, 107, 0.04);
+    }
+
+    .node-card.online {
+      border-color: rgba(128, 82, 255, 0.3);
+    }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .node-id {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .node-sub {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .node-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .node-online-badge {
+      background: var(--accent-green-dim);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+
+    .node-crashed-badge {
+      background: var(--accent-red-dim);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+    }
+
+    .node-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .detail-val {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .node-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 11px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-crash {
+      background: rgba(255, 66, 107, 0.08);
+      color: var(--accent-red);
+      border-color: rgba(255, 66, 107, 0.4);
+      flex: 1;
+    }
+
+    .btn-crash:hover {
+      background: var(--accent-red);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(255, 66, 107, 0.35);
+    }
+
+    .btn-recover {
+      background: rgba(43, 216, 167, 0.08);
+      color: var(--accent-green);
+      border-color: rgba(43, 216, 167, 0.35);
+      flex: 1;
+    }
+
+    .btn-recover:hover {
+      background: var(--accent-green);
+      color: #000;
+      box-shadow: 0 0 15px rgba(43, 216, 167, 0.35);
+    }
+
+    /* SECTION 2: UPLOAD & INGESTION */
+    .two-col-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .two-col-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-card {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border-subtle);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border-bright);
+      border-radius: 8px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.05);
+    }
+
+    .upload-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      color: var(--accent-cyan);
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100%; height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .selected-file-info {
+      margin-top: 14px;
+      padding: 14px;
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .pre-chunk-preview {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .pre-chunk-box {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+    }
+
+    .btn-upload {
+      background: #79f2ff;
+      color: #020608;
+      font-weight: 800;
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      box-shadow: 0 0 24px rgba(121, 242, 255, 0.28);
+    }
+
+    .btn-upload:hover {
+      box-shadow: 0 0 28px rgba(121, 242, 255, 0.42);
+      background: #a2f7ff;
+    }
+
+    .btn-upload:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Pipeline Step Diagram */
+    .pipeline-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 11px;
+    }
+
+    .pipeline-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .step-number {
+      background: var(--accent-cyan-dim);
+      color: var(--accent-cyan);
+      border: 1px solid var(--accent-cyan);
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-content strong {
+      color: #fff;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .step-content p {
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       DYNAMIC ARCHITECTURAL VISUALIZER (NEW CORE COMPONENT)
+       ========================================================================== */
+    .visualizer-section {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(128, 82, 255, 0.28);
+      box-shadow: 0 0 24px rgba(128, 82, 255, 0.06);
+      border-radius: 28px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .visualizer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .object-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .select-dropdown {
+      background: #080d1a;
+      color: var(--accent-cyan);
+      border: 1px solid var(--border-bright);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Monolithic Buffer Bar */
+    .buffer-strip-container {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .buffer-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .monolithic-bar {
+      height: 36px;
+      background: linear-gradient(90deg, #0077b6 0%, #00b4d8 50%, #0096c7 100%);
+      border-radius: 6px;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 15px rgba(0, 180, 216, 0.2);
+    }
+
+    .bisect-laser {
+      position: absolute;
+      top: 0; bottom: 0; left: 50%;
+      width: 4px;
+      background: #ff0055;
+      transform: translateX(-50%);
+      box-shadow: 0 0 14px #ff0055, 0 0 24px #ff0055;
+      z-index: 10;
+      animation: laserPulse 1.5s infinite alternate;
+    }
+
+    @keyframes laserPulse {
+      0% { opacity: 0.7; box-shadow: 0 0 10px #ff0055; }
+      100% { opacity: 1; box-shadow: 0 0 25px #ff0055, 0 0 40px #ff3366; }
+    }
+
+    .laser-label {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 800;
+      color: #ff3366;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 2px 8px;
+      border-radius: 3px;
+      border: 1px solid #ff3366;
+      white-space: nowrap;
+    }
+
+    .bar-half {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      letter-spacing: 1px;
+    }
+
+    /* Chunks Interactive Columns */
+    .chunks-decomposition-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .chunks-decomposition-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chunk-vis-card {
+      background: rgba(8, 13, 26, 0.8);
+      border: 1px solid var(--border-bright);
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .chunk-vis-card:hover,
+    .chunk-vis-card:focus-visible {
+      border-color: rgba(132, 211, 255, 0.8);
+      box-shadow: 0 0 0 1px rgba(132, 211, 255, 0.25), 0 0 20px rgba(132, 211, 255, 0.12);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .chunk-vis-card.is-active {
+      border-color: rgba(117, 255, 181, 0.9);
+      box-shadow: 0 0 0 1px rgba(117, 255, 181, 0.35), 0 0 24px rgba(117, 255, 181, 0.12);
+      background: rgba(12, 21, 27, 0.94);
+    }
+
+    .chunk-vis-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .chunk-vis-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .binary-hex-box {
+      background: #03060c;
+      border: 1px solid #142036;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin-bottom: 12px;
+    }
+
+    .binary-hex-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .hex-val {
+      color: var(--accent-green);
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .ascii-val {
+      color: var(--accent-amber);
+      font-style: italic;
+    }
+
+    .hash-val {
+      color: var(--text-muted);
+      font-size: 10px;
+      word-break: break-all;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Drive Replication Matrix Rows */
+    .drive-replicas-matrix {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .replica-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .replica-row:hover,
+    .replica-row:focus-visible {
+      transform: translateX(2px);
+      border-color: rgba(132, 211, 255, 0.7);
+      outline: none;
+    }
+
+    .replica-row.is-selected {
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 18px rgba(132, 211, 255, 0.2);
+      border-color: rgba(132, 211, 255, 0.9);
+    }
+
+    .replica-row.healthy {
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .replica-row.offline {
+      border-left: 3px solid var(--accent-red);
+      opacity: 0.6;
+    }
+
+    .replica-row.corrupted {
+      border-left: 3px solid var(--accent-amber);
+      background: rgba(255, 183, 3, 0.05);
+    }
+
+    .replica-drive-name {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .replica-status-tag {
+      font-weight: 600;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    /* Interactive Reassembly Simulation Trace Box */
+    .trace-console {
+      background: #03050a;
+      border: 1px solid var(--border-bright);
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 20px;
+    }
+
+    .trace-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .trace-steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .trace-step-item {
+      display: flex;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 11px;
+    }
+
+    .trace-step-item.SUCCESS {
+      border-color: rgba(0, 255, 157, 0.3);
+      background: rgba(0, 255, 157, 0.04);
+    }
+
+    .trace-step-item.FAILOVER {
+      border-color: rgba(255, 183, 3, 0.3);
+      background: rgba(255, 183, 3, 0.04);
+    }
+
+    .trace-step-item.FAILOVER_OFFLINE {
+      border-color: rgba(255, 51, 102, 0.3);
+      background: rgba(255, 51, 102, 0.04);
+    }
+
+    /* SECTION 3: FILE BROWSER */
+    .files-container {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border-subtle);
+      border-radius: 28px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state p {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .file-item {
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 22px 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: center;
+      transition: background 0.2s ease;
+    }
+
+    .file-item:last-child {
+      border-bottom: none;
+    }
+
+    .file-item:hover {
+      background: rgba(128, 82, 255, 0.03);
+    }
+
+    .file-main-info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .file-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .file-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-meta-tag {
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .chunks-visualization {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .chunk-badge {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-bright);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 220px;
+    }
+
+    .chunk-badge-header {
+      display: flex;
+      justify-content: space-between;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .chunk-hash {
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      word-break: break-all;
+    }
+
+    .chunk-replicas {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+      align-items: center;
+    }
+
+    .replica-pill {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .replica-online {
+      background: var(--accent-green-dim);
+      color: var(--accent-green);
+      border: 1px solid var(--accent-green);
+    }
+
+    .replica-offline {
+      background: var(--accent-red-dim);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+      text-decoration: line-through;
+    }
+
+    .file-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .btn-download {
+      background: rgba(128, 82, 255, 0.12);
+      color: var(--color-bone-white);
+      border-color: rgba(128, 82, 255, 0.45);
+      padding: 9px 16px;
+    }
+
+    .btn-download:hover {
+      background: var(--color-electric-iris);
+      color: #fff;
+      box-shadow: 0 0 18px rgba(128, 82, 255, 0.28);
+    }
+
+    .btn-inspect {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--color-bone-white);
+      border-color: rgba(255, 255, 255, 0.12);
+      padding: 8px 14px;
+      font-size: 10px;
+    }
+
+    .btn-inspect:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .btn-corrupt {
+      background: rgba(255, 184, 41, 0.08);
+      color: var(--accent-amber);
+      border-color: rgba(255, 184, 41, 0.35);
+      font-size: 10px;
+      padding: 4px 8px;
+    }
+
+    .btn-corrupt:hover {
+      background: var(--accent-amber);
+      color: #000;
+    }
+
+    .btn-delete {
+      background: transparent;
+      color: var(--text-dim);
+      border-color: transparent;
+      padding: 4px 8px;
+      font-size: 10px;
+    }
+
+    .btn-delete:hover {
+      color: var(--accent-red);
+    }
+
+    /* TELEMETRY AUDIT LOG (TERMINAL) */
+    .terminal-container {
+      background: #04060a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .terminal-header {
+      background: #080c14;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .terminal-body {
+      padding: 16px;
+      max-height: 240px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .log-time {
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .log-level {
+      font-weight: 700;
+      width: 70px;
+      flex-shrink: 0;
+    }
+
+    .log-level.SYSTEM { color: var(--accent-cyan); }
+    .log-level.INGEST { color: var(--accent-green); }
+    .log-level.CHAOS { color: var(--accent-red); }
+    .log-level.RECOVERY { color: var(--accent-green); }
+    .log-level.RETRIEVAL { color: var(--accent-cyan); }
+    .log-level.WARN { color: var(--accent-amber); }
+    .log-level.ALERT { color: var(--accent-red); }
+    .log-level.SUCCESS { color: var(--accent-green); }
+    .log-level.ASSEMBLE { color: #fff; }
+    .log-level.ERROR { color: var(--accent-red); }
+    .log-level.FATAL { color: #ff0055; font-weight: 800; }
+
+    .log-msg {
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 999px;
+      background: rgba(16, 16, 20, 0.92);
+      border: 1px solid rgba(128, 82, 255, 0.5);
+      color: #fff;
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- HEADER / TELEMETRY OVERVIEW -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo"></div>
+        <div class="brand-title">
+          <h1>Vault</h1>
+          <p>Distributed storage fabric</p>
+        </div>
+      </div>
+
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#manifesto">Manifesto</a>
+        <a href="#nodes">Nodes</a>
+        <a href="#objects">Objects</a>
+        <a href="#telemetry">Telemetry</a>
+      </nav>
+
+      <div class="cluster-metrics">
+        <div id="clusterStatusPill" class="status-pill status-healthy">
+          <span class="dot pulse"></span>
+          <span id="clusterStatusText">CLUSTER HEALTHY</span>
+        </div>
+        <div class="metric-badge">
+          <span>GitHub Platform</span>
+          <span id="githubPlatformStatus">Checking...</span>
+        </div>
+        <div class="metric-badge">
+          <span>GitHub Repo</span>
+          <span id="githubRepoLabel">microsoft/vscode</span>
+        </div>
+        <div class="metric-badge">
+          <span>Active Quorum</span>
+          <span id="activeNodesRatio">3 / 3</span>
+        </div>
+        <div class="metric-badge">
+          <span>Catalog Objects</span>
+          <span id="totalObjectsCount">0</span>
+        </div>
+        <div class="metric-badge">
+          <span>Fabric Storage</span>
+          <span id="totalStorageBytes">0 KB</span>
+        </div>
+      </div>
+
+      <div id="authActions" style="display:flex; align-items:center; gap:12px;">
+        <div id="userBadge" style="display:none; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted);">Guest</div>
+        <button id="logoutBtn" class="nav-cta" type="button" style="display:none;">Logout</button>
+      </div>
+    </header>
+
+    <div class="auth-screen">
+      <section id="authPanel" class="panel-card">
+        <div class="auth-visual">
+          <div class="auth-copy">
+            <div class="eyebrow">Vault access</div>
+            <h2>Secure the fabric.</h2>
+            <p>Authenticate to access the distributed storage grid, inspect node topology, and monitor live replication health.</p>
+          </div>
+          <div class="auth-orbit" aria-hidden="true">
+            <div class="auth-core"></div>
+            <span class="auth-node one" aria-hidden="true"></span>
+            <span class="auth-node two" aria-hidden="true"></span>
+            <span class="auth-node three" aria-hidden="true"></span>
+            <span class="auth-node four" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <div class="auth-form-wrap">
+          <div class="auth-card">
+            <div class="auth-card-header">
+              <div class="small-tag">Sign in</div>
+              <h3>Welcome back</h3>
+              <p>Access the cluster dashboard and storage overview.</p>
+            </div>
+
+            <form id="loginForm" novalidate>
+              <div class="field-wrap">
+                <label for="loginUsername">Username</label>
+                <input id="loginUsername" type="text" value="alice" required placeholder="Enter username" />
+              </div>
+
+              <div class="field-wrap">
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" value="demo123" required placeholder="Enter password" />
+              </div>
+
+              <button type="submit" class="login-action">Login</button>
+            </form>
+
+            <div id="loginMessage"></div>
+
+            <div class="auth-footer">
+              <span>Cluster online</span>
+              <span class="status-dot" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="appShell">
+      <section id="overviewDashboard" class="panel-card" style="margin-bottom:24px; display:none;">
+        <div class="section-title">
+          <h2>Storage Usage Overview</h2>
+        </div>
+        <div id="usageOverviewGrid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:18px;"></div>
+        <div id="usageBreakdown" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px;"></div>
+      </section>
+
+      <section id="manifesto" class="hero-panel" style="margin-bottom: 28px; border: 1px solid rgba(255,255,255,0.08); border-radius: 32px; background: linear-gradient(135deg, rgba(128,82,255,0.07), rgba(255,255,255,0.02)); padding: 32px 28px; display: grid; grid-template-columns: 1.35fr 0.95fr; gap: 28px; align-items: center;">
+      <div>
+        <div style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-saffron-spark); margin-bottom: 12px;">Distributed intelligence</div>
+        <h2 style="font-size: clamp(3rem, 6vw, 6rem); line-height: 0.9; letter-spacing: -0.06em; font-weight: 400; margin: 0 0 18px; color: var(--color-bone-white); max-width: 720px;">Resilient storage for the edge of the network.</h2>
+        <p style="max-width: 560px; color: var(--color-silver-mist); font-size: 18px; line-height: 1.5; margin-bottom: 20px;">Vault simulates a fault-tolerant object store with chunk replication, live failover, and cryptographic integrity checks designed for a modern distributed system.</p>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+          <button id="launchClusterBtn" class="nav-cta" type="button">Launch cluster</button>
+          <button id="inspectTopologyBtn" class="btn btn-inspect" type="button" style="padding: 11px 18px; min-width: 170px;">Inspect topology</button>
+        </div>
+      </div>
+      <div style="position: relative; min-height: 240px; border-radius: 28px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.06); overflow: hidden;">
+        <div style="position:absolute; inset:8% 12% 10% 12%; border-radius:50%; background: radial-gradient(circle at 50% 50%, rgba(128,82,255,0.25), transparent 55%), radial-gradient(circle at 30% 30%, rgba(255,184,41,0.25), transparent 25%); filter: blur(10px);"></div>
+        <div style="position:absolute; inset:0; background: radial-gradient(circle at 50% 35%, rgba(255,255,255,0.12), transparent 22%), radial-gradient(circle at 22% 70%, rgba(128,82,255,0.2), transparent 18%), radial-gradient(circle at 62% 72%, rgba(21,132,110,0.15), transparent 18%);"></div>
+        <div style="position:absolute; left: 50%; top: 50%; width: 190px; height: 190px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(128,82,255,0.04) 38%, rgba(0,0,0,0) 70%);"></div>
+        <div style="position:absolute; left: 50%; top: 50%; width: 170px; height: 170px; transform: translate(-50%, -50%) rotate(8deg); border-radius: 48% 52% 44% 56% / 52% 40% 60% 48%; border: 1px solid rgba(128,82,255,0.35); box-shadow: inset 0 0 30px rgba(128,82,255,0.14), 0 0 30px rgba(128,82,255,0.12);"></div>
+        <div style="position:absolute; width: 8px; height: 8px; left: 42%; top: 43%; border-radius: 50%; background: var(--color-saffron-spark); box-shadow: 0 0 12px rgba(255,184,41,0.8);"></div>
+        <div style="position:absolute; width: 7px; height: 7px; left: 52%; top: 36%; border-radius: 50%; background: var(--color-electric-iris); box-shadow: 0 0 12px rgba(128,82,255,0.8);"></div>
+        <div style="position:absolute; width: 7px; height: 7px; left: 60%; top: 48%; border-radius: 50%; background: #5bd1ff; box-shadow: 0 0 12px rgba(91,209,255,0.8);"></div>
+        <div style="position:absolute; width: 7px; height: 7px; left: 58%; top: 62%; border-radius: 50%; background: var(--color-deep-verdant); box-shadow: 0 0 12px rgba(21,132,110,0.8);"></div>
+        <div style="position:absolute; width: 6px; height: 6px; left: 44%; top: 60%; border-radius: 50%; background: #ffc857; box-shadow: 0 0 10px rgba(255,200,87,0.8);"></div>
+      </div>
+    </section>
+
+    <!-- SECTION 1: CLUSTER STATUS -->
+      <section id="nodes">
+        <div class="section-title">
+          <h2>Cluster Virtual Drives (Physical Partition Simulation)</h2>
+          <span style="color: var(--text-dim); font-size: 11px;">Replication Factor: N Active Nodes</span>
+        </div>
+        <div class="nodes-grid" id="nodesContainer">
+          <!-- Dynamically injected node cards -->
+        </div>
+      </section>
+
+      <!-- SECTION 2: UPLOAD & INGESTION PIPELINE -->
+      <div class="two-col-grid">
+      <!-- Upload Box -->
+      <section class="panel-card">
+        <div class="section-title">
+          <h2>Object Ingestion & Chunking</h2>
+        </div>
+        <form id="uploadForm">
+          <div class="upload-zone" id="dropZone">
+            <input type="file" id="fileInput" required>
+            <div class="upload-icon">⇪</div>
+            <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">Select or drop payload file here</div>
+            <div style="color: var(--text-muted); font-size: 11px;">Supports binaries, PDF, images, logs up to 50MB</div>
+          </div>
+          <div class="selected-file-info" id="selectedFileInfo">
+            <div style="display: flex; justify-content: space-between; font-weight: 700; color: #fff;">
+              <span id="selectedFileName">filename.ext</span>
+              <span id="selectedFileSize" style="color: var(--accent-cyan);">0 KB</span>
+            </div>
+            <!-- Pre-chunking calculation preview -->
+            <div class="pre-chunk-preview">
+              <div class="pre-chunk-box">
+                <span style="color: var(--accent-cyan); font-weight: 700;">Chunk 0 Projection:</span>
+                <div id="preChunk0Range" style="color: var(--text-muted); font-size: 10px;">Byte [0 → 0]</div>
+              </div>
+              <div class="pre-chunk-box">
+                <span style="color: var(--accent-cyan); font-weight: 700;">Chunk 1 Projection:</span>
+                <div id="preChunk1Range" style="color: var(--text-muted); font-size: 10px;">Byte [0 → 0]</div>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-upload" id="uploadBtn">
+            ⚡ Upload & Replicate Across Active Nodes
+          </button>
+        </form>
+      </section>
+
+        <!-- Architecture Explainer -->
+        <section class="panel-card">
+          <div class="section-title">
+            <h2>Distributed Replication Mechanics</h2>
+          </div>
+          <div class="pipeline-steps">
+            <div class="pipeline-step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <strong>Split Buffer into 2 Equal Chunks</strong>
+                <p>Uploaded object is partitioned into <code>chunk_0</code> and <code>chunk_1</code> with midpoint boundary calculation.</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <strong>Cryptographic SHA-256 Fingerprinting</strong>
+                <p>Every chunk receives an immutable cryptographic digest for guaranteed bit-rot detection during reads.</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <strong>Simultaneous Active-Node Replication</strong>
+                <p>Replicas are written to all currently online virtual drives (<code>./storage/node_X</code>).</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <strong>Fault-Tolerant Auto-Failover Reassembly</strong>
+                <p>If any drive is crashed or bit-rotted, surviving replicas are automatically probed and stitched together seamlessly.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ========================================================================
+           CORE ARCHITECTURAL VISUALIZER: REAL-TIME BINARY CHUNKING & REASSEMBLY
+           ======================================================================== -->
+      <section class="visualizer-section" id="visualizerSection">
+      <div class="visualizer-header">
+        <div>
+          <h2 style="font-size: 16px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>🔬</span> REAL-TIME BINARY DECOMPOSITION & TOPOLOGY INSPECTOR
+          </h2>
+          <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">
+            Live visualization of exact binary slicing, disk replication, and cryptographic verification for stored objects.
+          </p>
+        </div>
+        <div class="object-selector">
+          <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Inspect Object:</span>
+          <select id="inspectObjectSelect" class="select-dropdown" onchange="loadObjectInspection(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <div id="visualizerContent">
+        <!-- Dynamically rendered visualizer panels -->
+        <div class="empty-state">
+          <div>🔍</div>
+          <div style="font-weight: 700; color: #fff; margin-top: 6px;">Select an Object to Inspect Binary Architecture</div>
+        </div>
+      </div>
+    </section>
+
+      <!-- SECTION 3: FILE BROWSER -->
+      <section id="objects">
+        <div class="section-title">
+          <h2>Object Catalog & Reassembly Console</h2>
+          <span style="color: var(--text-dim); font-size: 11px;">Bit-Rot Verified Downloads</span>
+        </div>
+        <div class="files-container" id="filesList">
+          <!-- Rendered file records -->
+        </div>
+      </section>
+
+      <!-- LIVE TELEMETRY AUDIT TRAIL -->
+      <section id="telemetry">
+        <div class="section-title">
+          <h2>Live Cluster Audit Log (Event Stream)</h2>
+          <span style="color: var(--text-dim); font-size: 11px;">Real-Time Failover & Heartbeat Monitoring</span>
+        </div>
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <span>VAULT_KERNEL // TELEMETRY_STREAM</span>
+            <span>POLL_INTERVAL: 3000ms</span>
+          </div>
+          <div class="terminal-body" id="terminalLogs">
+            <div class="log-line">
+              <span class="log-time">[INIT]</span>
+              <span class="log-level SYSTEM">SYSTEM</span>
+              <span class="log-msg">Connecting to cluster controller...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <div id="toast">Operation completed</div>
+
+  <script>
+    // Cluster state cache
+    let clusterData = null;
+    let currentSelectedFileId = null;
+    let authToken = localStorage.getItem('vaultAuthToken') || '';
+    let currentUser = null;
+
+    function setAuthVisible(isLoggedIn, user = null) {
+      const loginPanel = document.getElementById('authPanel');
+      const appShell = document.getElementById('appShell');
+      const overviewDashboard = document.getElementById('overviewDashboard');
+      const userBadge = document.getElementById('userBadge');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const loginForm = document.getElementById('loginForm');
+      const loginMessage = document.getElementById('loginMessage');
+
+      currentUser = user;
+      loginMessage.style.display = 'none';
+      userBadge.style.display = isLoggedIn && user ? 'inline-block' : 'none';
+      userBadge.innerText = isLoggedIn && user ? `${user.role} • ${user.displayName}` : 'Guest';
+      logoutBtn.style.display = isLoggedIn ? 'inline-flex' : 'none';
+      loginPanel.style.display = isLoggedIn ? 'none' : 'block';
+      appShell.style.display = isLoggedIn ? 'block' : 'none';
+      overviewDashboard.style.display = isLoggedIn ? 'block' : 'none';
+      document.body.classList.toggle('auth-locked', !isLoggedIn);
+      if (!isLoggedIn) {
+        loginForm.reset();
+      }
+    }
+
+    async function fetchCurrentUser() {
+      if (!authToken) {
+        setAuthVisible(false, null);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+
+        if (!res.ok) {
+          throw new Error('Session expired');
+        }
+
+        const data = await res.json();
+        setAuthVisible(true, data.user);
+        fetchClusterStatus();
+      } catch (err) {
+        authToken = '';
+        localStorage.removeItem('vaultAuthToken');
+        setAuthVisible(false, null);
+      }
+    }
+
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const loginMessage = document.getElementById('loginMessage');
+
+      if (!username || !password) {
+        loginMessage.innerText = 'Username and password are required before accessing the dashboard.';
+        loginMessage.style.display = 'block';
+        loginMessage.style.color = 'var(--accent-red)';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Login failed');
+        }
+
+        authToken = data.token;
+        localStorage.setItem('vaultAuthToken', authToken);
+        setAuthVisible(true, data.user);
+        loginMessage.style.display = 'none';
+        fetchClusterStatus();
+      } catch (err) {
+        loginMessage.innerText = err.message;
+        loginMessage.style.display = 'block';
+        loginMessage.style.color = 'var(--accent-red)';
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        if (!authToken) return;
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+      } catch (err) {
+        console.warn('Logout failed', err);
+      } finally {
+        authToken = '';
+        localStorage.removeItem('vaultAuthToken');
+        setAuthVisible(false, null);
+      }
+    }
+
+    // Toast utility
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.style.borderColor = isError ? 'var(--accent-red)' : 'var(--accent-cyan)';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // Format bytes helper
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // ============================================================================
+    // API CALLS & REFRESH LOGIC
+    // ============================================================================
+    async function fetchClusterStatus() {
+      if (!authToken) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/status', {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (!res.ok) throw new Error('Failed to retrieve cluster status');
+        clusterData = await res.json();
+        renderDashboard(clusterData);
+        renderUsageOverview(clusterData.overview || { users: [] });
+
+        if (!currentSelectedFileId && clusterData.files.length > 0) {
+          currentSelectedFileId = clusterData.files[0].fileId;
+          loadObjectInspection(currentSelectedFileId);
+        } else if (currentSelectedFileId) {
+          loadObjectInspection(currentSelectedFileId, true);
+        }
+      } catch (err) {
+        console.error('Cluster polling error:', err);
+      }
+    }
+
+    // Load full physical disk inspection for selected file
+    async function loadObjectInspection(fileId, isSilent = false) {
+      if (!fileId || !authToken) return;
+      currentSelectedFileId = fileId;
+      try {
+        const res = await fetch(`/api/file/${fileId}/inspect`, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (!res.ok) return;
+        const inspectData = await res.json();
+        renderArchitecturalVisualizer(inspectData);
+        bindChunkInteractions();
+
+        if (!isSilent) {
+          const select = document.getElementById('inspectObjectSelect');
+          if (select) select.value = fileId;
+        }
+      } catch (err) {
+        console.error('Inspect error:', err);
+      }
+    }
+
+    // Run interactive dry-run reassembly trace
+    async function runReassemblyTrace(fileId) {
+      try {
+        const res = await fetch(`/api/file/${fileId}/trace`, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (!res.ok) throw new Error('Trace failed');
+        const trace = await res.json();
+        renderTraceConsole(trace);
+        showToast('Real-time reassembly pipeline trace completed!');
+      } catch (err) {
+        showToast(`Trace error: ${err.message}`, true);
+      }
+    }
+
+    // Toggle Node Online / Offline (Crash Simulation)
+    async function toggleNode(nodeId) {
+      try {
+        const res = await fetch(`/api/node/${nodeId}/toggle`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Node ${nodeId} status toggled: ${data.node.online ? 'RECOVERED' : 'CRASHED'}`);
+          fetchClusterStatus();
+        }
+      } catch (err) {
+        showToast(`Failed to toggle node: ${err.message}`, true);
+      }
+    }
+
+    // Simulate Bit Rot / Data Corruption on a specific node's chunk
+    async function simulateBitRot(nodeId, fileId, chunkIndex) {
+      try {
+        const res = await fetch(`/api/node/${nodeId}/corrupt/${fileId}/${chunkIndex}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Bit-rot injected into Node ${nodeId} Chunk ${chunkIndex}! Reassembly will auto-failover.`, false);
+          fetchClusterStatus();
+        } else {
+          showToast(data.error || 'Bit rot simulation failed', true);
+        }
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // Delete file
+    async function deleteFile(fileId) {
+      if (!confirm('Are you sure you want to purge this object from all node partitions?')) return;
+      try {
+        const res = await fetch(`/api/file/${fileId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (res.ok) {
+          showToast('Object purged from cluster.');
+          currentSelectedFileId = null;
+          fetchClusterStatus();
+        }
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    // Download object with diagnostics banner
+    async function downloadObject(fileId, originalName) {
+      try {
+        showToast(`Initiating failover-tolerant reassembly for ${originalName}...`);
+        const res = await fetch(`/api/download/${fileId}`, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          alert(`DOWNLOAD FAILED:\n\n${errData.error}\n${errData.details || ''}`);
+          fetchClusterStatus();
+          return;
+        }
+
+        // Trigger native browser download
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = originalName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        showToast(`Object "${originalName}" reassembled & downloaded with 100% hash integrity!`);
+        fetchClusterStatus();
+      } catch (err) {
+        showToast(`Download error: ${err.message}`, true);
+      }
+    }
+
+    // ============================================================================
+    // DOM RENDERING - DASHBOARD & METRICS
+    // ============================================================================
+    function renderUsageOverview(overview) {
+      const grid = document.getElementById('usageOverviewGrid');
+      const breakdown = document.getElementById('usageBreakdown');
+      if (!grid || !breakdown || !overview || !overview.users) return;
+
+      const grandTotal = overview.totalStorageBytes || 0;
+      const cards = [
+        { label: 'Users', value: overview.totalUsers || 0 },
+        { label: 'Objects', value: overview.totalFiles || 0 },
+        { label: 'Storage Used', value: overview.totalStorageLabel || '0 B' },
+        { label: 'Admin Access', value: overview.adminAccess ? 'Enabled' : 'User mode' }
+      ];
+
+      grid.innerHTML = cards.map((card) => `
+        <div class="panel-card" style="padding:16px; margin:0; border-radius:18px;">
+          <div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">${card.label}</div>
+          <div style="font-size:28px; font-weight:700; color:#fff;">${card.value}</div>
+        </div>
+      `).join('');
+
+      breakdown.innerHTML = overview.users.map((user) => {
+        const percentage = Math.min(100, Math.max(0, user.totalStorageBytes / Math.max(grandTotal || 1, 1) * 100));
+        return `
+          <div class="panel-card" style="padding:16px; margin:0; border-radius:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <div style="font-weight:700; color:#fff; font-size:16px;">${user.displayName}</div>
+                <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em;">${user.role}</div>
+              </div>
+              <div style="font-size:12px; color:var(--accent-cyan); font-weight:700;">${user.totalStorageLabel}</div>
+            </div>
+            <div style="height:12px; background: rgba(255,255,255,0.05); border-radius:999px; overflow:hidden; border:1px solid var(--border-subtle);">
+              <div style="width:${percentage}%; height:100%; background: linear-gradient(90deg, var(--accent-violet), var(--accent-green)); border-radius:999px;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px;">
+              <span style="font-size:11px; color:var(--text-muted);">${user.files} files</span>
+              <span style="font-size:11px; color:var(--text-muted);">${user.usagePercent || 0}% of pool</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderDashboard(data) {
+      // 1. Header Metrics
+      const statusPill = document.getElementById('clusterStatusPill');
+      const statusText = document.getElementById('clusterStatusText');
+      statusPill.className = 'status-pill';
+
+      if (data.cluster.status === 'HEALTHY') {
+        statusPill.classList.add('status-healthy');
+        statusText.innerText = 'CLUSTER HEALTHY';
+      } else if (data.cluster.status === 'DEGRADED') {
+        statusPill.classList.add('status-degraded');
+        statusText.innerText = 'CLUSTER DEGRADED';
+      } else {
+        statusPill.classList.add('status-critical');
+        statusText.innerText = 'CLUSTER OFFLINE';
+      }
+
+      const platformStatusEl = document.getElementById('githubPlatformStatus');
+      const platform = data.platformHealth || {};
+      const platformLabel = (platform.indicator || 'unknown').toUpperCase();
+      platformStatusEl.innerText = platformLabel;
+      platformStatusEl.style.color = platform.indicator === 'major' ? 'var(--accent-red)' : platform.indicator === 'minor' ? 'var(--accent-yellow)' : 'var(--accent-green)';
+
+      const githubRepoEl = document.getElementById('githubRepoLabel');
+      const repoMetrics = data.githubRepoMetrics || {};
+      githubRepoEl.innerText = repoMetrics.enabled ? (repoMetrics.repo || 'github/repo') : 'repo unavailable';
+      githubRepoEl.style.color = repoMetrics.enabled ? 'var(--color-bone-white)' : 'var(--text-dim)';
+
+      document.getElementById('activeNodesRatio').innerText = `${data.cluster.activeNodes} / ${data.cluster.totalNodes}`;
+      document.getElementById('totalObjectsCount').innerText = data.cluster.totalObjects;
+      document.getElementById('totalStorageBytes').innerText = formatBytes(data.cluster.totalStorageBytes);
+
+      // 2. Render Virtual Storage Nodes
+      const nodesContainer = document.getElementById('nodesContainer');
+      nodesContainer.innerHTML = data.nodes.map(node => `
+        <div class="node-card ${node.online ? 'online' : 'crashed'}">
+          <div class="node-header">
+            <div>
+              <div class="node-id">
+                <span>${node.online ? '🟢' : '🔴'}</span>
+                <span>${node.name}</span>
+              </div>
+              <div class="node-sub">ID: ${node.id} &bull; Zone: ${node.zone}</div>
+            </div>
+            <div class="node-status-indicator ${node.online ? 'node-online-badge' : 'node-crashed-badge'}">
+              <span class="dot ${node.online ? 'pulse' : ''}"></span>
+              ${node.online ? 'ONLINE' : 'CRASHED / OFFLINE'}
+            </div>
+          </div>
+
+          <div class="node-details">
+            <div class="detail-item">
+              <span class="detail-label">Partition Directory</span>
+              <span class="detail-val" title="./storage/${node.id}">./storage/${node.id}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Storage Consumed</span>
+              <span class="detail-val">${formatBytes(node.bytesUsed)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Stored Chunks</span>
+              <span class="detail-val">${node.chunkCount} chunks</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Health Heartbeat</span>
+              <span class="detail-val" style="color: ${node.online ? 'var(--accent-green)' : 'var(--accent-red)'}">
+                ${node.online ? 'ACK (200 OK)' : 'CONN_REFUSED'}
+              </span>
+            </div>
+          </div>
+
+          <div class="node-actions">
+            ${node.online ? `
+              <button class="btn btn-crash" onclick="toggleNode('${node.id}')">
+                💥 Simulate Crash (Take Offline)
+              </button>
+            ` : `
+              <button class="btn btn-recover" onclick="toggleNode('${node.id}')">
+                ⚡ Recover Node (Bring Online)
+              </button>
+            `}
+          </div>
+        </div>
+      `).join('');
+
+      // Populate Object Inspect Select Dropdown
+      const select = document.getElementById('inspectObjectSelect');
+      select.innerHTML = data.files.length === 0 
+        ? '<option value="">No objects stored</option>'
+        : data.files.map(f => `<option value="${f.fileId}" ${f.fileId === currentSelectedFileId ? 'selected' : ''}>${f.originalName} (${formatBytes(f.size)})</option>`).join('');
+
+      // 3. Render Files List
+      const filesContainer = document.getElementById('filesList');
+      if (data.files.length === 0) {
+        filesContainer.innerHTML = `
+          <div class="empty-state">
+            <div style="font-size: 28px;">📦</div>
+            <div style="font-weight: 700; color: #fff; margin-top: 8px;">No Objects Stored Yet</div>
+            <p>Upload a file using the panel above. It will be split into 2 chunks and replicated across active drives.</p>
+          </div>
+        `;
+      } else {
+        filesContainer.innerHTML = data.files.map(file => {
+          return `
+            <div class="file-item">
+              <div class="file-main-info">
+                <div class="file-title-row">
+                  <span class="file-name">📄 ${file.originalName}</span>
+                  <span class="file-meta-tag">${formatBytes(file.size)}</span>
+                  <span class="file-meta-tag">${file.mimeType}</span>
+                  <span class="file-meta-tag">Replication: ${file.replicationFactor}x</span>
+                  <span class="file-meta-tag" style="color: var(--text-dim);">${new Date(file.uploadedAt).toLocaleTimeString()}</span>
+                </div>
+
+                <div class="chunks-visualization">
+                  ${file.chunks.map(chunk => `
+                    <div class="chunk-badge">
+                      <div class="chunk-badge-header">
+                        <span>CHUNK ${chunk.index}</span>
+                        <span>${formatBytes(chunk.size)}</span>
+                      </div>
+                      <div class="chunk-hash" title="SHA-256: ${chunk.hash}">
+                        SHA-256: ${chunk.hash.slice(0, 16)}...${chunk.hash.slice(-8)}
+                      </div>
+                      <div class="chunk-replicas">
+                        <span style="color: var(--text-dim); font-size: 9px; margin-right: 4px;">REPLICAS:</span>
+                        ${chunk.replicas.map(replicaNodeId => {
+                          const isNodeOnline = data.nodes.find(n => n.id === replicaNodeId)?.online;
+                          return `
+                            <span class="replica-pill ${isNodeOnline ? 'replica-online' : 'replica-offline'}" title="${replicaNodeId} is ${isNodeOnline ? 'ONLINE' : 'OFFLINE'}">
+                              ${replicaNodeId.replace('_', ' ').toUpperCase()}
+                            </span>
+                          `;
+                        }).join('')}
+                      </div>
+
+                      <!-- Bit-rot test button -->
+                      <div style="margin-top: 6px; display: flex; gap: 4px;">
+                        ${chunk.replicas.map(replicaNodeId => `
+                          <button class="btn btn-corrupt" onclick="simulateBitRot('${replicaNodeId}', '${file.fileId}', ${chunk.index})" title="Flip a byte on ${replicaNodeId} to test bit-rot detection">
+                            Corrupt on ${replicaNodeId.slice(-1)}
+                          </button>
+                        `).join('')}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="file-actions">
+                <button class="btn btn-inspect" onclick="loadObjectInspection('${file.fileId}')">
+                  🔬 Inspect Binary Slices
+                </button>
+                <button class="btn btn-download" onclick="downloadObject('${file.fileId}', '${file.originalName}')">
+                  📥 Download & Reassemble
+                </button>
+                <button class="btn btn-delete" onclick="deleteFile('${file.fileId}')">
+                  🗑️ Purge
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 4. Render Telemetry Logs
+      const terminalLogs = document.getElementById('terminalLogs');
+      terminalLogs.innerHTML = data.telemetry.map(log => `
+        <div class="log-line">
+          <span class="log-time">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
+          <span class="log-level ${log.level}">${log.level}</span>
+          <span class="log-msg">${log.message}</span>
+        </div>
+      `).join('');
+    }
+
+    // ============================================================================
+    // ARCHITECTURAL VISUALIZER: REAL-TIME DECOMPOSITION
+    // ============================================================================
+    function renderArchitecturalVisualizer(data) {
+      const container = document.getElementById('visualizerContent');
+      if (!data || !data.chunks || data.chunks.length < 2) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div>🔍</div>
+            <div style="font-weight: 700; color: #fff; margin-top: 6px;">Select an object from the catalog to inspect</div>
+          </div>
+        `;
+        return;
+      }
+
+      const chunk0 = data.chunks[0];
+      const chunk1 = data.chunks[1];
+      const midPointByte = chunk0.expectedSize;
+
+      container.innerHTML = `
+        <!-- Object Payload Overview Strip -->
+        <div class="buffer-strip-container">
+          <div class="buffer-label-row">
+            <div>
+              <strong style="color: #fff; font-size: 14px;">📄 ${data.originalName}</strong>
+              <span style="color: var(--accent-cyan); margin-left: 8px;">[${formatBytes(data.size)} &bull; ${data.size.toLocaleString()} Bytes]</span>
+              <span style="color: var(--text-dim); margin-left: 8px;">MIME: ${data.mimeType}</span>
+            </div>
+            <div style="font-size: 11px;">
+              <span>Midpoint Boundary: </span>
+              <strong style="color: #ff3366;">Byte ${midPointByte.toLocaleString()}</strong>
+            </div>
+          </div>
+
+          <!-- Monolithic Memory Representation with Bisect Laser -->
+          <div class="monolithic-bar" title="Total Binary Buffer (100%)">
+            <div class="bar-half" style="background: rgba(0, 180, 216, 0.25);">
+              CHUNK 0: Bytes [0 → ${(chunk0.expectedSize - 1).toLocaleString()}]
+            </div>
+            <div class="bisect-laser">
+              <span class="laser-label">✂️ BISECT CUT @ BYTE ${midPointByte.toLocaleString()}</span>
+            </div>
+            <div class="bar-half" style="background: rgba(0, 150, 199, 0.4);">
+              CHUNK 1: Bytes [${chunk0.expectedSize.toLocaleString()} → ${(data.size - 1).toLocaleString()}]
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-Column Binary Decomposition Cards -->
+        <div class="chunks-decomposition-grid">
+          <!-- Chunk 0 Card -->
+          <div class="chunk-vis-card is-active" data-chunk-index="0" tabindex="0" role="button" aria-label="Inspect chunk 0">
+            <div class="chunk-vis-header">
+              <div class="chunk-vis-title">
+                <span>🧩</span> CHUNK 0 (First 50%)
+              </div>
+              <span style="color: var(--accent-green); font-weight: 700;">${formatBytes(chunk0.expectedSize)}</span>
+            </div>
+
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 8px;">
+              Range: <strong>[${chunk0.byteRange[0].toLocaleString()} → ${chunk0.byteRange[1].toLocaleString()}]</strong> (${chunk0.expectedSize.toLocaleString()} Bytes)
+            </div>
+
+            <!-- Real Binary Previews -->
+            <div class="binary-hex-box">
+              <div class="binary-hex-row">
+                <span style="color: var(--text-dim);">HEX MAGIC BYTES:</span>
+                <span class="hex-val">${chunk0.hexPreview || 'N/A'}</span>
+              </div>
+              <div class="binary-hex-row">
+                <span style="color: var(--text-dim);">ASCII SIGNATURE:</span>
+                <span class="ascii-val">"${chunk0.asciiPreview || 'N/A'}"</span>
+              </div>
+            </div>
+
+            <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">SHA-256 INTEGRITY DIGEST:</div>
+            <div class="hash-val">${chunk0.expectedHash}</div>
+
+            <!-- Live Physical Drive Matrix for Chunk 0 -->
+            <div class="drive-replicas-matrix">
+              <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-top: 6px;">
+                Physical Drive Partitions (Replica Targets):
+              </div>
+              ${chunk0.nodes.map(n => `
+                <div class="replica-row ${!n.online ? 'offline' : n.isCorrupt ? 'corrupted' : 'healthy'}" data-node-id="${n.nodeId}" data-chunk-index="0" tabindex="0" role="button" aria-label="Inspect replica on ${n.nodeName}">
+                  <div>
+                    <span class="replica-drive-name">${n.nodeName}</span>
+                    <span style="color: var(--text-dim); font-size: 10px; margin-left: 6px;">(./storage/${n.nodeId})</span>
+                  </div>
+                  <div>
+                    ${!n.online ? `
+                      <span class="replica-status-tag" style="background: var(--accent-red-dim); color: var(--accent-red); border: 1px solid var(--accent-red);">
+                        🛑 DRIVE CRASHED / OFFLINE
+                      </span>
+                    ` : n.isCorrupt ? `
+                      <span class="replica-status-tag" style="background: var(--accent-amber-dim); color: var(--accent-amber); border: 1px solid var(--accent-amber);">
+                        ⚠️ BIT-ROT DETECTED (HASH MISMATCH)
+                      </span>
+                    ` : `
+                      <span class="replica-status-tag" style="background: var(--accent-green-dim); color: var(--accent-green); border: 1px solid var(--accent-green);">
+                        ✓ PRESENT & VERIFIED (${formatBytes(n.actualSize)})
+                      </span>
+                    `}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Chunk 1 Card -->
+          <div class="chunk-vis-card" data-chunk-index="1" tabindex="0" role="button" aria-label="Inspect chunk 1">
+            <div class="chunk-vis-header">
+              <div class="chunk-vis-title">
+                <span>🧩</span> CHUNK 1 (Second 50%)
+              </div>
+              <span style="color: var(--accent-green); font-weight: 700;">${formatBytes(chunk1.expectedSize)}</span>
+            </div>
+
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 8px;">
+              Range: <strong>[${chunk1.byteRange[0].toLocaleString()} → ${chunk1.byteRange[1].toLocaleString()}]</strong> (${chunk1.expectedSize.toLocaleString()} Bytes)
+            </div>
+
+            <!-- Real Binary Previews -->
+            <div class="binary-hex-box">
+              <div class="binary-hex-row">
+                <span style="color: var(--text-dim);">HEX MAGIC BYTES:</span>
+                <span class="hex-val">${chunk1.hexPreview || 'N/A'}</span>
+              </div>
+              <div class="binary-hex-row">
+                <span style="color: var(--text-dim);">ASCII SIGNATURE:</span>
+                <span class="ascii-val">"${chunk1.asciiPreview || 'N/A'}"</span>
+              </div>
+            </div>
+
+            <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">SHA-256 INTEGRITY DIGEST:</div>
+            <div class="hash-val">${chunk1.expectedHash}</div>
+
+            <!-- Live Physical Drive Matrix for Chunk 1 -->
+            <div class="drive-replicas-matrix">
+              <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-top: 6px;">
+                Physical Drive Partitions (Replica Targets):
+              </div>
+              ${chunk1.nodes.map(n => `
+                <div class="replica-row ${!n.online ? 'offline' : n.isCorrupt ? 'corrupted' : 'healthy'}" data-node-id="${n.nodeId}" data-chunk-index="1" tabindex="0" role="button" aria-label="Inspect replica on ${n.nodeName}">
+                  <div>
+                    <span class="replica-drive-name">${n.nodeName}</span>
+                    <span style="color: var(--text-dim); font-size: 10px; margin-left: 6px;">(./storage/${n.nodeId})</span>
+                  </div>
+                  <div>
+                    ${!n.online ? `
+                      <span class="replica-status-tag" style="background: var(--accent-red-dim); color: var(--accent-red); border: 1px solid var(--accent-red);">
+                        🛑 DRIVE CRASHED / OFFLINE
+                      </span>
+                    ` : n.isCorrupt ? `
+                      <span class="replica-status-tag" style="background: var(--accent-amber-dim); color: var(--accent-amber); border: 1px solid var(--accent-amber);">
+                        ⚠️ BIT-ROT DETECTED (HASH MISMATCH)
+                      </span>
+                    ` : `
+                      <span class="replica-status-tag" style="background: var(--accent-green-dim); color: var(--accent-green); border: 1px solid var(--accent-green);">
+                        ✓ PRESENT & VERIFIED (${formatBytes(n.actualSize)})
+                      </span>
+                    `}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Reassembly Flow Trigger -->
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-inspect" style="padding: 10px 18px; font-weight: 800;" onclick="runReassemblyTrace('${data.fileId}')">
+              ▶️ Run Real-Time Reassembly Trace
+            </button>
+            <button class="btn btn-download" style="padding: 10px 18px;" onclick="downloadObject('${data.fileId}', '${data.originalName}')">
+              📥 Download & Reconstruct Payload
+            </button>
+          </div>
+          <span style="font-size: 11px; color: var(--text-dim);">
+            Backend Verified: SHA-256 recalculation occurs dynamically during byte reassembly.
+          </span>
+        </div>
+
+        <!-- Reassembly Execution Trace Container -->
+        <div id="traceContainer" style="display: none;"></div>
+      `;
+    }
+
+    function bindChunkInteractions() {
+      const visualizer = document.getElementById('visualizerContent');
+      if (!visualizer) return;
+
+      const chunkCards = visualizer.querySelectorAll('.chunk-vis-card');
+      chunkCards.forEach((card) => {
+        const activateChunk = () => {
+          chunkCards.forEach((node) => node.classList.toggle('is-active', node === card));
+          const chunkIndex = card.dataset.chunkIndex;
+          localStorage.setItem('selectedChunkIndex', chunkIndex);
+          showToast(`Chunk ${chunkIndex} selected for inspection`);
+        };
+
+        card.addEventListener('click', (event) => {
+          if (event.target.closest('button')) return;
+          activateChunk();
+        });
+
+        card.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            activateChunk();
+          }
+        });
+      });
+
+      const replicaRows = visualizer.querySelectorAll('.replica-row');
+      replicaRows.forEach((row) => {
+        const activateReplica = () => {
+          replicaRows.forEach((node) => node.classList.toggle('is-selected', node === row));
+          const nodeId = row.dataset.nodeId;
+          const chunkIndex = row.dataset.chunkIndex;
+          showToast(`Replica ${nodeId} selected for chunk ${chunkIndex}`);
+        };
+
+        row.addEventListener('click', activateReplica);
+        row.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            activateReplica();
+          }
+        });
+      });
+    }
+
+    // Render interactive step-by-step trace console
+    function renderTraceConsole(trace) {
+      const container = document.getElementById('traceContainer');
+      if (!container) return;
+      container.style.display = 'block';
+
+      const chunkCards = container.parentElement?.querySelectorAll('.chunk-vis-card');
+      chunkCards?.forEach((card) => {
+        card.classList.remove('is-active');
+      });
+
+      const selectedChunkIndex = localStorage.getItem('selectedChunkIndex');
+      if (selectedChunkIndex !== null) {
+        const selectedCard = container.parentElement?.querySelector(`.chunk-vis-card[data-chunk-index="${selectedChunkIndex}"]`);
+        if (selectedCard) selectedCard.classList.add('is-active');
+      }
+
+      container.innerHTML = `
+        <div class="trace-console">
+          <div class="trace-title">
+            <span>🔬 Reassembly Algorithmic Execution Trace</span>
+            <span style="color: ${trace.success ? 'var(--accent-green)' : 'var(--accent-red)'}">
+              ${trace.success ? '100% RECONSTRUCTION GUARANTEED' : 'QUORUM LOSS'}
+            </span>
+          </div>
+
+          <div class="trace-steps-list">
+            ${trace.steps.map((s, idx) => `
+              <div class="trace-step-item ${s.type.includes('VERIFIED') || s.type === 'SUMMARY' ? 'SUCCESS' : s.type.includes('BITROT') ? 'FAILOVER' : s.type.includes('OFFLINE') ? 'FAILOVER_OFFLINE' : ''}">
+                <div style="font-weight: 700; color: var(--accent-cyan); width: 20px; flex-shrink: 0;">#${idx + 1}</div>
+                <div style="flex: 1;">
+                  <strong style="color: #fff;">${s.title}</strong>
+                  <p style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${s.detail}</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ============================================================================
+    // FILE UPLOAD HANDLING & PRE-CHUNKING PROJECTION
+    // ============================================================================
+    const fileInput = document.getElementById('fileInput');
+    const selectedFileInfo = document.getElementById('selectedFileInfo');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const selectedFileSize = document.getElementById('selectedFileSize');
+    const preChunk0Range = document.getElementById('preChunk0Range');
+    const preChunk1Range = document.getElementById('preChunk1Range');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const size = file.size;
+        const midPoint = Math.ceil(size / 2);
+
+        selectedFileName.innerText = file.name;
+        selectedFileSize.innerText = formatBytes(size);
+
+        preChunk0Range.innerText = `Bytes [0 → ${(midPoint - 1).toLocaleString()}] (${formatBytes(midPoint)})`;
+        preChunk1Range.innerText = `Bytes [${midPoint.toLocaleString()} → ${(size - 1).toLocaleString()}] (${formatBytes(size - midPoint)})`;
+
+        selectedFileInfo.style.display = 'flex';
+      } else {
+        selectedFileInfo.style.display = 'none';
+      }
+    });
+
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!fileInput.files.length) return;
+
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      uploadBtn.disabled = true;
+      uploadBtn.innerText = '⚙️ Partitioning Binary Buffer & Broadcasting Replicas...';
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showToast(`File "${file.name}" chunked into 2 pieces and replicated!`);
+          currentSelectedFileId = data.object.fileId;
+          uploadForm.reset();
+          selectedFileInfo.style.display = 'none';
+          fetchClusterStatus();
+        } else {
+          showToast(data.error || 'Upload failed', true);
+        }
+      } catch (err) {
+        showToast(`Upload failed: ${err.message}`, true);
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = '⚡ Upload & Replicate Across Active Nodes';
+      }
+    });
+
+    // Smooth ambient background motion tied to scroll
+    function updateScrollBackground() {
+      const offset = window.scrollY || 0;
+      const shiftX = Math.min(offset * 0.12, 36);
+      const shiftY = Math.min(offset * 0.18, 46);
+      const rotate = Math.min(offset * 0.04, 8);
+      document.documentElement.style.setProperty('--bg-shift-x', `${shiftX}px`);
+      document.documentElement.style.setProperty('--bg-shift-y', `${shiftY}px`);
+      document.documentElement.style.setProperty('--bg-rotate', `${rotate}deg`);
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+    window.addEventListener('scroll', updateScrollBackground, { passive: true });
+    updateScrollBackground();
+
+    function scrollToSection(targetId, focusSelector = null) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (focusSelector) {
+        const focusTarget = target.querySelector(focusSelector) || target;
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+          focusTarget.focus({ preventScroll: true });
+        }
+      }
+    }
+
+    document.getElementById('launchClusterBtn')?.addEventListener('click', () => {
+      scrollToSection('uploadForm', '#fileInput');
+      const fileInput = document.getElementById('fileInput');
+      if (fileInput) {
+        setTimeout(() => fileInput.click(), 250);
+      }
+    });
+
+    document.getElementById('inspectTopologyBtn')?.addEventListener('click', () => {
+      scrollToSection('visualizerSection', '#inspectObjectSelect');
+    });
+
+    // Auto-polling telemetry every 3 seconds
+    fetchCurrentUser();
+    setInterval(() => {
+      if (authToken) fetchClusterStatus();
+    }, 3000);
+  </script>
+</body>
+</html>
