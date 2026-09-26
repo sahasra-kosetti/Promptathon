@@ -57,6 +57,47 @@
       scroll-behavior: smooth;
     }
 
+    .skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 1000;
+      padding: 12px 16px;
+      color: #fff;
+      background: #28175c;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 3px solid #ffcf5c;
+      outline-offset: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
     body {
       background-color: var(--bg-base);
       color: var(--text-main);
@@ -1516,6 +1557,7 @@
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#appShell">Skip to dashboard</a>
   <div class="container">
 
     <!-- HEADER / TELEMETRY OVERVIEW -->
@@ -1593,21 +1635,21 @@
               <p>Access the cluster dashboard and storage overview.</p>
             </div>
 
-            <form id="loginForm" novalidate>
+            <form id="loginForm">
               <div class="field-wrap">
                 <label for="loginUsername">Username</label>
-                <input id="loginUsername" type="text" value="alice" required placeholder="Enter username" />
+                <input id="loginUsername" name="username" type="text" value="alice" required autocomplete="username" placeholder="Enter username" />
               </div>
 
               <div class="field-wrap">
                 <label for="loginPassword">Password</label>
-                <input id="loginPassword" type="password" value="demo123" required placeholder="Enter password" />
+                <input id="loginPassword" name="password" type="password" value="demo123" required autocomplete="current-password" placeholder="Enter password" />
               </div>
 
               <button type="submit" class="login-action">Login</button>
             </form>
 
-            <div id="loginMessage"></div>
+            <div id="loginMessage" role="alert" aria-live="assertive"></div>
 
             <div class="auth-footer">
               <span>Cluster online</span>
@@ -1670,7 +1712,8 @@
         </div>
         <form id="uploadForm">
           <div class="upload-zone" id="dropZone">
-            <input type="file" id="fileInput" required>
+            <label for="fileInput" class="visually-hidden">Choose a file to upload</label>
+            <input type="file" id="fileInput" name="file" required>
             <div class="upload-icon">⇪</div>
             <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">Select or drop payload file here</div>
             <div style="color: var(--text-muted); font-size: 11px;">Supports binaries, PDF, images, logs up to 50MB</div>
@@ -1751,6 +1794,7 @@
         </div>
         <div class="object-selector">
           <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Inspect Object:</span>
+          <label class="visually-hidden" for="inspectObjectSelect">Choose an object to inspect</label>
           <select id="inspectObjectSelect" class="select-dropdown" onchange="loadObjectInspection(this.value)">
             <!-- Populated dynamically -->
           </select>
@@ -1801,7 +1845,7 @@
 
   </div>
 
-  <div id="toast">Operation completed</div>
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true">Operation completed</div>
 
   <script>
     // Cluster state cache
@@ -1809,6 +1853,16 @@
     let currentSelectedFileId = null;
     let authToken = localStorage.getItem('vaultAuthToken') || '';
     let currentUser = null;
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[character]);
+    }
 
     function setAuthVisible(isLoggedIn, user = null) {
       const loginPanel = document.getElementById('authPanel');
@@ -2111,7 +2165,7 @@
           <div class="panel-card" style="padding:16px; margin:0; border-radius:18px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
               <div>
-                <div style="font-weight:700; color:#fff; font-size:16px;">${user.displayName}</div>
+                <div style="font-weight:700; color:#fff; font-size:16px;">${escapeHtml(user.displayName)}</div>
                 <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em;">${user.role}</div>
               </div>
               <div style="font-size:12px; color:var(--accent-cyan); font-weight:700;">${user.totalStorageLabel}</div>
@@ -2168,9 +2222,9 @@
             <div>
               <div class="node-id">
                 <span>${node.online ? '🟢' : '🔴'}</span>
-                <span>${node.name}</span>
+                <span>${escapeHtml(node.name)}</span>
               </div>
-              <div class="node-sub">ID: ${node.id} &bull; Zone: ${node.zone}</div>
+              <div class="node-sub">ID: ${escapeHtml(node.id)} &bull; Zone: ${escapeHtml(node.zone)}</div>
             </div>
             <div class="node-status-indicator ${node.online ? 'node-online-badge' : 'node-crashed-badge'}">
               <span class="dot ${node.online ? 'pulse' : ''}"></span>
@@ -2181,7 +2235,7 @@
           <div class="node-details">
             <div class="detail-item">
               <span class="detail-label">Partition Directory</span>
-              <span class="detail-val" title="./storage/${node.id}">./storage/${node.id}</span>
+              <span class="detail-val" title="./storage/${escapeHtml(node.id)}">./storage/${escapeHtml(node.id)}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">Storage Consumed</span>
@@ -2200,15 +2254,15 @@
           </div>
 
           <div class="node-actions">
-            ${node.online ? `
-              <button class="btn btn-crash" onclick="toggleNode('${node.id}')">
+            ${currentUser?.role === 'admin' ? (node.online ? `
+              <button class="btn btn-crash" onclick="toggleNode('${escapeHtml(node.id)}')">
                 💥 Simulate Crash (Take Offline)
               </button>
             ` : `
-              <button class="btn btn-recover" onclick="toggleNode('${node.id}')">
+              <button class="btn btn-recover" onclick="toggleNode('${escapeHtml(node.id)}')">
                 ⚡ Recover Node (Bring Online)
               </button>
-            `}
+            `) : ''}
           </div>
         </div>
       `).join('');
@@ -2217,7 +2271,7 @@
       const select = document.getElementById('inspectObjectSelect');
       select.innerHTML = data.files.length === 0 
         ? '<option value="">No objects stored</option>'
-        : data.files.map(f => `<option value="${f.fileId}" ${f.fileId === currentSelectedFileId ? 'selected' : ''}>${f.originalName} (${formatBytes(f.size)})</option>`).join('');
+        : data.files.map(f => `<option value="${escapeHtml(f.fileId)}" ${f.fileId === currentSelectedFileId ? 'selected' : ''}>${escapeHtml(f.originalName)} (${formatBytes(f.size)})</option>`).join('');
 
       // 3. Render Files List
       const filesContainer = document.getElementById('filesList');
@@ -2235,9 +2289,9 @@
             <div class="file-item">
               <div class="file-main-info">
                 <div class="file-title-row">
-                  <span class="file-name">📄 ${file.originalName}</span>
+                  <span class="file-name">📄 ${escapeHtml(file.originalName)}</span>
                   <span class="file-meta-tag">${formatBytes(file.size)}</span>
-                  <span class="file-meta-tag">${file.mimeType}</span>
+                  <span class="file-meta-tag">${escapeHtml(file.mimeType)}</span>
                   <span class="file-meta-tag">Replication: ${file.replicationFactor}x</span>
                   <span class="file-meta-tag" style="color: var(--text-dim);">${new Date(file.uploadedAt).toLocaleTimeString()}</span>
                 </div>
@@ -2249,42 +2303,42 @@
                         <span>CHUNK ${chunk.index}</span>
                         <span>${formatBytes(chunk.size)}</span>
                       </div>
-                      <div class="chunk-hash" title="SHA-256: ${chunk.hash}">
-                        SHA-256: ${chunk.hash.slice(0, 16)}...${chunk.hash.slice(-8)}
+                      <div class="chunk-hash" title="SHA-256: ${escapeHtml(chunk.hash)}">
+                        SHA-256: ${escapeHtml(chunk.hash.slice(0, 16))}...${escapeHtml(chunk.hash.slice(-8))}
                       </div>
                       <div class="chunk-replicas">
                         <span style="color: var(--text-dim); font-size: 9px; margin-right: 4px;">REPLICAS:</span>
                         ${chunk.replicas.map(replicaNodeId => {
                           const isNodeOnline = data.nodes.find(n => n.id === replicaNodeId)?.online;
                           return `
-                            <span class="replica-pill ${isNodeOnline ? 'replica-online' : 'replica-offline'}" title="${replicaNodeId} is ${isNodeOnline ? 'ONLINE' : 'OFFLINE'}">
-                              ${replicaNodeId.replace('_', ' ').toUpperCase()}
+                            <span class="replica-pill ${isNodeOnline ? 'replica-online' : 'replica-offline'}" title="${escapeHtml(replicaNodeId)} is ${isNodeOnline ? 'ONLINE' : 'OFFLINE'}">
+                              ${escapeHtml(replicaNodeId.replace('_', ' ').toUpperCase())}
                             </span>
                           `;
                         }).join('')}
                       </div>
 
                       <!-- Bit-rot test button -->
-                      <div style="margin-top: 6px; display: flex; gap: 4px;">
+                      ${currentUser?.role === 'admin' ? `<div style="margin-top: 6px; display: flex; gap: 4px;">
                         ${chunk.replicas.map(replicaNodeId => `
-                          <button class="btn btn-corrupt" onclick="simulateBitRot('${replicaNodeId}', '${file.fileId}', ${chunk.index})" title="Flip a byte on ${replicaNodeId} to test bit-rot detection">
-                            Corrupt on ${replicaNodeId.slice(-1)}
+                          <button class="btn btn-corrupt" onclick="simulateBitRot('${escapeHtml(replicaNodeId)}', '${escapeHtml(file.fileId)}', ${Number(chunk.index)})" title="Flip a byte on ${escapeHtml(replicaNodeId)} to test bit-rot detection">
+                            Corrupt on ${escapeHtml(replicaNodeId.slice(-1))}
                           </button>
                         `).join('')}
-                      </div>
+                      </div>` : ''}
                     </div>
                   `).join('')}
                 </div>
               </div>
 
               <div class="file-actions">
-                <button class="btn btn-inspect" onclick="loadObjectInspection('${file.fileId}')">
+                <button class="btn btn-inspect" onclick="loadObjectInspection('${escapeHtml(file.fileId)}')">
                   🔬 Inspect Binary Slices
                 </button>
-                <button class="btn btn-download" onclick="downloadObject('${file.fileId}', '${file.originalName}')">
+                <button class="btn btn-download" onclick="downloadObject('${escapeHtml(file.fileId)}', ${escapeHtml(JSON.stringify(file.originalName))})">
                   📥 Download & Reassemble
                 </button>
-                <button class="btn btn-delete" onclick="deleteFile('${file.fileId}')">
+                <button class="btn btn-delete" onclick="deleteFile('${escapeHtml(file.fileId)}')">
                   🗑️ Purge
                 </button>
               </div>
@@ -2298,8 +2352,8 @@
       terminalLogs.innerHTML = data.telemetry.map(log => `
         <div class="log-line">
           <span class="log-time">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
-          <span class="log-level ${log.level}">${log.level}</span>
-          <span class="log-msg">${log.message}</span>
+          <span class="log-level ${escapeHtml(log.level)}">${escapeHtml(log.level)}</span>
+          <span class="log-msg">${escapeHtml(log.message)}</span>
         </div>
       `).join('');
     }
@@ -2328,9 +2382,9 @@
         <div class="buffer-strip-container">
           <div class="buffer-label-row">
             <div>
-              <strong style="color: #fff; font-size: 14px;">📄 ${data.originalName}</strong>
+              <strong style="color: #fff; font-size: 14px;">📄 ${escapeHtml(data.originalName)}</strong>
               <span style="color: var(--accent-cyan); margin-left: 8px;">[${formatBytes(data.size)} &bull; ${data.size.toLocaleString()} Bytes]</span>
-              <span style="color: var(--text-dim); margin-left: 8px;">MIME: ${data.mimeType}</span>
+              <span style="color: var(--text-dim); margin-left: 8px;">MIME: ${escapeHtml(data.mimeType)}</span>
             </div>
             <div style="font-size: 11px;">
               <span>Midpoint Boundary: </span>
@@ -2371,16 +2425,16 @@
             <div class="binary-hex-box">
               <div class="binary-hex-row">
                 <span style="color: var(--text-dim);">HEX MAGIC BYTES:</span>
-                <span class="hex-val">${chunk0.hexPreview || 'N/A'}</span>
+                <span class="hex-val">${escapeHtml(chunk0.hexPreview || 'N/A')}</span>
               </div>
               <div class="binary-hex-row">
                 <span style="color: var(--text-dim);">ASCII SIGNATURE:</span>
-                <span class="ascii-val">"${chunk0.asciiPreview || 'N/A'}"</span>
+                <span class="ascii-val">"${escapeHtml(chunk0.asciiPreview || 'N/A')}"</span>
               </div>
             </div>
 
             <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">SHA-256 INTEGRITY DIGEST:</div>
-            <div class="hash-val">${chunk0.expectedHash}</div>
+            <div class="hash-val">${escapeHtml(chunk0.expectedHash)}</div>
 
             <!-- Live Physical Drive Matrix for Chunk 0 -->
             <div class="drive-replicas-matrix">
@@ -2388,9 +2442,9 @@
                 Physical Drive Partitions (Replica Targets):
               </div>
               ${chunk0.nodes.map(n => `
-                <div class="replica-row ${!n.online ? 'offline' : n.isCorrupt ? 'corrupted' : 'healthy'}" data-node-id="${n.nodeId}" data-chunk-index="0" tabindex="0" role="button" aria-label="Inspect replica on ${n.nodeName}">
+                  <div class="replica-row ${!n.online ? 'offline' : n.isCorrupt ? 'corrupted' : 'healthy'}" data-node-id="${escapeHtml(n.nodeId)}" data-chunk-index="0" tabindex="0" role="button" aria-label="Inspect replica on ${escapeHtml(n.nodeName)}">
                   <div>
-                    <span class="replica-drive-name">${n.nodeName}</span>
+                    <span class="replica-drive-name">${escapeHtml(n.nodeName)}</span>
                     <span style="color: var(--text-dim); font-size: 10px; margin-left: 6px;">(./storage/${n.nodeId})</span>
                   </div>
                   <div>
@@ -2430,16 +2484,16 @@
             <div class="binary-hex-box">
               <div class="binary-hex-row">
                 <span style="color: var(--text-dim);">HEX MAGIC BYTES:</span>
-                <span class="hex-val">${chunk1.hexPreview || 'N/A'}</span>
+                <span class="hex-val">${escapeHtml(chunk1.hexPreview || 'N/A')}</span>
               </div>
               <div class="binary-hex-row">
                 <span style="color: var(--text-dim);">ASCII SIGNATURE:</span>
-                <span class="ascii-val">"${chunk1.asciiPreview || 'N/A'}"</span>
+                <span class="ascii-val">"${escapeHtml(chunk1.asciiPreview || 'N/A')}"</span>
               </div>
             </div>
 
             <div style="font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">SHA-256 INTEGRITY DIGEST:</div>
-            <div class="hash-val">${chunk1.expectedHash}</div>
+            <div class="hash-val">${escapeHtml(chunk1.expectedHash)}</div>
 
             <!-- Live Physical Drive Matrix for Chunk 1 -->
             <div class="drive-replicas-matrix">
@@ -2447,9 +2501,9 @@
                 Physical Drive Partitions (Replica Targets):
               </div>
               ${chunk1.nodes.map(n => `
-                <div class="replica-row ${!n.online ? 'offline' : n.isCorrupt ? 'corrupted' : 'healthy'}" data-node-id="${n.nodeId}" data-chunk-index="1" tabindex="0" role="button" aria-label="Inspect replica on ${n.nodeName}">
+                  <div class="replica-row ${!n.online ? 'offline' : n.isCorrupt ? 'corrupted' : 'healthy'}" data-node-id="${escapeHtml(n.nodeId)}" data-chunk-index="1" tabindex="0" role="button" aria-label="Inspect replica on ${escapeHtml(n.nodeName)}">
                   <div>
-                    <span class="replica-drive-name">${n.nodeName}</span>
+                    <span class="replica-drive-name">${escapeHtml(n.nodeName)}</span>
                     <span style="color: var(--text-dim); font-size: 10px; margin-left: 6px;">(./storage/${n.nodeId})</span>
                   </div>
                   <div>
@@ -2476,10 +2530,10 @@
         <!-- Interactive Reassembly Flow Trigger -->
         <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="btn btn-inspect" style="padding: 10px 18px; font-weight: 800;" onclick="runReassemblyTrace('${data.fileId}')">
+            <button class="btn btn-inspect" style="padding: 10px 18px; font-weight: 800;" onclick="runReassemblyTrace('${escapeHtml(data.fileId)}')">
               ▶️ Run Real-Time Reassembly Trace
             </button>
-            <button class="btn btn-download" style="padding: 10px 18px;" onclick="downloadObject('${data.fileId}', '${data.originalName}')">
+            <button class="btn btn-download" style="padding: 10px 18px;" onclick="downloadObject('${escapeHtml(data.fileId)}', ${escapeHtml(JSON.stringify(data.originalName))})">
               📥 Download & Reconstruct Payload
             </button>
           </div>
@@ -2569,8 +2623,8 @@
               <div class="trace-step-item ${s.type.includes('VERIFIED') || s.type === 'SUMMARY' ? 'SUCCESS' : s.type.includes('BITROT') ? 'FAILOVER' : s.type.includes('OFFLINE') ? 'FAILOVER_OFFLINE' : ''}">
                 <div style="font-weight: 700; color: var(--accent-cyan); width: 20px; flex-shrink: 0;">#${idx + 1}</div>
                 <div style="flex: 1;">
-                  <strong style="color: #fff;">${s.title}</strong>
-                  <p style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${s.detail}</p>
+                  <strong style="color: #fff;">${escapeHtml(s.title)}</strong>
+                  <p style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${escapeHtml(s.detail)}</p>
                 </div>
               </div>
             `).join('')}
@@ -2624,6 +2678,7 @@
       try {
         const res = await fetch('/api/upload', {
           method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` },
           body: formData
         });
 

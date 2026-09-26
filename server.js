@@ -15,8 +15,9 @@
  */
 
 const express = require('express');
-const cors = require('cors');
 const multer = require('multer');
+const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -29,10 +30,14 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'github/gitignore';
 const GITHUB_STATUS_URL = process.env.GITHUB_STATUS_URL || 'https://www.githubstatus.com/api/v2/status.json';
 
-// Enable CORS and JSON parsing
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Render terminates TLS at one trusted proxy; use that client IP for rate limits.
+app.set('trust proxy', 1);
+
+// Add standard security headers. CSP is disabled until inline UI scripts/styles
+// are moved to external assets; COEP is disabled for the dashboard's web fonts.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(express.json({ limit: '16kb' }));
+app.use(express.urlencoded({ extended: false, limit: '16kb' }));
 
 // ── Global malformed-JSON body error handler ──────────────────────────────────
 // Catches SyntaxError thrown by express.json() when the client sends invalid JSON
@@ -52,10 +57,32 @@ app.use((err, req, res, next) => {
 // Serve frontend static assets from public/ directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Multer in-memory storage: accepts files up to 50MB for chunking
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' }
+});
+const uploadRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Upload limit reached. Try again in 15 minutes.' }
+});
+
+// Bound both individual payloads and multipart parsing resources.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+    files: 1,
+    fields: 5,
+    parts: 6,
+    fieldNameSize: 100,
+    fieldSize: 16 * 1024
+  }
 });
 
 // ============================================================================
@@ -180,6 +207,25 @@ function requireAuth(req, res, next) {
   }
   req.user = user;
   next();
+}
+
+function requireAdmin(req, res, next) {
+  const user = getAuthenticatedUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required. Please log in.' });
+  }
+  if (user.role !== 'admin') {
+    return res.status(403).json({ error: 'Administrator access required.' });
+  }
+  req.user = user;
+  next();
+}
+
+function canAccessFile(req, res, fileMeta) {
+  if (fileMeta && (req.user.role === 'admin' || fileMeta.userId === req.user.id)) return true;
+  // Do not reveal whether another user's object exists.
+  res.status(404).json({ error: 'Object not found.' });
+  return false;
 }
 
 function buildUserUsageSummary(userIdFilter = null) {
@@ -477,6 +523,14 @@ function computeSha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
+function sanitizeFilename(value, fallback) {
+  const filename = path.basename(String(value || ''))
+    .replace(/[\u0000-\u001f\u007f"\\/]/g, '_')
+    .trim()
+    .slice(0, 255);
+  return filename || fallback;
+}
+
 // Utility: Count chunks and compute disk usage per node
 function getNodeStats(node) {
   try {
@@ -496,7 +550,7 @@ function getNodeStats(node) {
 // ============================================================================
 // 2. UPLOAD & CHUNKING ENDPOINT (`POST /api/upload`)
 // ============================================================================
-app.post('/api/upload', requireAuth, upload.single('file'), async (req, res) => {
+app.post('/api/upload', requireAuth, uploadRateLimit, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file supplied for upload.' });
@@ -517,7 +571,7 @@ app.post('/api/upload', requireAuth, upload.single('file'), async (req, res) => 
     const fileBuffer = req.file.buffer;
     const totalSize = fileBuffer.length;
     const fileId = crypto.randomUUID();
-    const originalName = req.file.originalname || `object_${fileId.slice(0, 8)}.bin`;
+    const originalName = sanitizeFilename(req.file.originalname, `object_${fileId.slice(0, 8)}.bin`);
     const mimeType = req.file.mimetype || 'application/octet-stream';
 
     // Concurrency Lock: prevent race conditions on simultaneous file ingestion
@@ -620,13 +674,14 @@ app.post('/api/upload', requireAuth, upload.single('file'), async (req, res) => 
 // ============================================================================
 // 3. DOWNLOAD & FAULT-TOLERANT REASSEMBLY (`GET /api/download/:fileId`)
 // ============================================================================
-app.get('/api/download/:fileId', (req, res) => {
+app.get('/api/download/:fileId', requireAuth, (req, res) => {
   const { fileId } = req.params;
   const fileMeta = metadataStore.get(fileId);
 
   if (!fileMeta) {
     return res.status(404).json({ error: `Object ID "${fileId}" not found in cluster catalog.` });
   }
+  if (!canAccessFile(req, res, fileMeta)) return;
 
   logEvent('RETRIEVAL', `Download request received for "${fileMeta.originalName}" (${fileId}). Initiating failover-tolerant reassembly.`);
 
@@ -757,6 +812,24 @@ app.get('/api/download/:fileId', (req, res) => {
 // 4. ADMIN & TELEMETRY ENDPOINTS
 // ============================================================================
 
+const githubMetricsCache = { expiresAt: 0, value: null, pending: null };
+
+async function getExternalMetrics() {
+  if (githubMetricsCache.value && Date.now() < githubMetricsCache.expiresAt) {
+    return githubMetricsCache.value;
+  }
+  if (githubMetricsCache.pending) return githubMetricsCache.pending;
+
+  githubMetricsCache.pending = Promise.all([getGithubPlatformHealth(), getGithubRepoMetrics()])
+    .then(([platformHealth, githubRepoMetrics]) => {
+      githubMetricsCache.value = { platformHealth, githubRepoMetrics };
+      githubMetricsCache.expiresAt = Date.now() + 60_000;
+      return githubMetricsCache.value;
+    })
+    .finally(() => { githubMetricsCache.pending = null; });
+  return githubMetricsCache.pending;
+}
+
 async function getGithubPlatformHealth() {
   try {
     const response = await fetch(GITHUB_STATUS_URL, {
@@ -830,12 +903,15 @@ async function getGithubRepoMetrics() {
   }
 }
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', loginRateLimit, (req, res) => {
   const { username, password } = req.body || {};
   const normalizedUsername = String(username || '').trim().toLowerCase();
-  const passwordHash = crypto.createHash('sha256').update(String(password || '')).digest('hex');
-
-  const user = USERS.find((entry) => entry.username.toLowerCase() === normalizedUsername && entry.passwordHash === passwordHash);
+  const suppliedHash = crypto.createHash('sha256').update(String(password || '')).digest();
+  const user = USERS.find((entry) => {
+    if (entry.username.toLowerCase() !== normalizedUsername) return false;
+    const storedHash = Buffer.from(entry.passwordHash, 'hex');
+    return storedHash.length === suppliedHash.length && crypto.timingSafeEqual(storedHash, suppliedHash);
+  });
   if (!user) {
     return res.status(401).json({ error: 'Invalid username or password.' });
   }
@@ -876,7 +952,9 @@ app.get('/api/users/overview', requireAuth, async (req, res) => {
       displayName: user.displayName,
       role: user.role,
       files: filesForUser.length,
-      totalStorageBytes,
+      totalStorageBytes: req.user.role === 'admin'
+        ? totalStorageBytes
+        : visibleFiles.reduce((sum, file) => sum + (Number(file.size) || 0), 0),
       totalStorageLabel: formatFileSize(totalStorageBytes),
       usagePercent: Number(usagePercent.toFixed(2))
     };
@@ -928,8 +1006,7 @@ app.get('/api/status', requireAuth, async (req, res) => {
   const visibleFiles = req.user.role === 'admin' ? allFiles : allFiles.filter((file) => file.userId === req.user.id);
   const activeNodesCount = nodes.filter((n) => n.online).length;
   const totalStorageBytes = nodeStats.reduce((sum, n) => sum + n.bytesUsed, 0);
-  const platformHealth = await getGithubPlatformHealth();
-  const githubRepoMetrics = await getGithubRepoMetrics();
+  const { platformHealth, githubRepoMetrics } = await getExternalMetrics();
   const overview = {
     totalUsers: USERS.length,
     totalStorageBytes: allFiles.reduce((sum, file) => sum + (Number(file.size) || 0), 0),
@@ -950,6 +1027,13 @@ app.get('/api/status', requireAuth, async (req, res) => {
       };
     })
   };
+  if (req.user.role !== 'admin') {
+    overview.totalUsers = 1;
+    overview.totalStorageBytes = visibleFiles.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
+    overview.totalFiles = visibleFiles.length;
+    overview.totalStorageLabel = formatFileSize(overview.totalStorageBytes);
+    overview.users = overview.users.filter((user) => user.id === req.user.id);
+  }
 
   return res.json({
     auth: { user: sanitizeUser(req.user) },
@@ -964,20 +1048,20 @@ app.get('/api/status', requireAuth, async (req, res) => {
       readQuorum: clusterConfig.readQuorum,
       autoRepairOnRead: clusterConfig.autoRepairOnRead,
       scrubberActive: clusterConfig.scrubberActive,
-      networkPartitions: clusterConfig.networkPartitions
+      networkPartitions: req.user.role === 'admin' ? clusterConfig.networkPartitions : []
     },
-    config: clusterConfig,
-    scrubber: scrubberStats,
+    config: req.user.role === 'admin' ? clusterConfig : undefined,
+    scrubber: req.user.role === 'admin' ? scrubberStats : undefined,
     nodes: nodeStats,
     files: visibleFiles,
     platformHealth,
     githubRepoMetrics,
-    telemetry: telemetryLogs.slice(0, 30)
+    telemetry: req.user.role === 'admin' ? telemetryLogs.slice(0, 30) : []
   });
 });
 
 // POST /api/node/:id/toggle - Simulate hardware crash or node recovery
-app.post('/api/node/:id/toggle', (req, res) => {
+app.post('/api/node/:id/toggle', requireAdmin, (req, res) => {
   const { id } = req.params;
   const node = nodes.find((n) => n.id === id);
 
@@ -1004,7 +1088,7 @@ app.post('/api/node/:id/toggle', (req, res) => {
 
 // POST /api/node/:id/corrupt/:fileId/:chunkIndex - Simulate Bit Rot / Data Corruption on a specific node
 // (Bonus Hackathon Feature: Live demo of cryptographic integrity check & failover!)
-app.post('/api/node/:id/corrupt/:fileId/:chunkIndex', (req, res) => {
+app.post('/api/node/:id/corrupt/:fileId/:chunkIndex', requireAdmin, (req, res) => {
   const { id, fileId, chunkIndex } = req.params;
   const node = nodes.find((n) => n.id === id);
 
@@ -1039,7 +1123,7 @@ app.post('/api/node/:id/corrupt/:fileId/:chunkIndex', (req, res) => {
 });
 
 // POST /api/config - Configure replication, quorum, and self-healing policies
-app.post('/api/config', (req, res) => {
+app.post('/api/config', requireAdmin, (req, res) => {
   const { writeQuorum, readQuorum, autoRepairOnRead, scrubberActive, scrubberIntervalSec } = req.body;
   if (writeQuorum !== undefined) clusterConfig.writeQuorum = Math.max(1, Math.min(3, parseInt(writeQuorum, 10)));
   if (readQuorum !== undefined) clusterConfig.readQuorum = Math.max(1, Math.min(3, parseInt(readQuorum, 10)));
@@ -1052,7 +1136,7 @@ app.post('/api/config', (req, res) => {
 });
 
 // POST /api/cluster/scrub - Trigger immediate on-demand background integrity scrub
-app.post('/api/cluster/scrub', (req, res) => {
+app.post('/api/cluster/scrub', requireAdmin, (req, res) => {
   const result = runAntiEntropyScrubber();
   return res.json({
     success: true,
@@ -1063,7 +1147,7 @@ app.post('/api/cluster/scrub', (req, res) => {
 });
 
 // POST /api/cluster/partition/:nodeId - Simulate network partition (isolated network zone / split-brain)
-app.post('/api/cluster/partition/:nodeId', (req, res) => {
+app.post('/api/cluster/partition/:nodeId', requireAdmin, (req, res) => {
   const { nodeId } = req.params;
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return res.status(404).json({ error: 'Node not found' });
@@ -1089,13 +1173,14 @@ app.post('/api/cluster/partition/:nodeId', (req, res) => {
 });
 
 // GET /api/file/:fileId/inspect - Real-time physical disk inspection matrix across all drives
-app.get('/api/file/:fileId/inspect', (req, res) => {
+app.get('/api/file/:fileId/inspect', requireAuth, (req, res) => {
   const { fileId } = req.params;
   const fileMeta = metadataStore.get(fileId);
 
   if (!fileMeta) {
     return res.status(404).json({ error: `Object ${fileId} not found in catalog.` });
   }
+  if (!canAccessFile(req, res, fileMeta)) return;
 
   const chunkInspection = fileMeta.chunks.map((chunk) => {
     const nodeReplicas = nodes.map((node) => {
@@ -1153,13 +1238,14 @@ app.get('/api/file/:fileId/inspect', (req, res) => {
 });
 
 // GET /api/file/:fileId/trace - Interactive dry-run reassembly pipeline tracer for UI visualization
-app.get('/api/file/:fileId/trace', (req, res) => {
+app.get('/api/file/:fileId/trace', requireAuth, (req, res) => {
   const { fileId } = req.params;
   const fileMeta = metadataStore.get(fileId);
 
   if (!fileMeta) {
     return res.status(404).json({ error: `Object ${fileId} not found.` });
   }
+  if (!canAccessFile(req, res, fileMeta)) return;
 
   const traceSteps = [];
   traceSteps.push({
@@ -1268,13 +1354,14 @@ app.get('/api/file/:fileId/trace', (req, res) => {
 });
 
 // Delete Object Endpoint (convenience helper for clean testing)
-app.delete('/api/file/:fileId', (req, res) => {
+app.delete('/api/file/:fileId', requireAuth, (req, res) => {
   const { fileId } = req.params;
   const fileMeta = metadataStore.get(fileId);
 
   if (!fileMeta) {
     return res.status(404).json({ error: 'Object not found.' });
   }
+  if (!canAccessFile(req, res, fileMeta)) return;
 
   // Delete chunk files across all physical node directories
   fileMeta.chunks.forEach((chunk) => {
@@ -1327,9 +1414,11 @@ server.on('error', (err) => {
 app.use((err, req, res, _next) => {
   console.error('[UNHANDLED_ERROR]', err);
   if (!res.headersSent) {
-    res.status(err.status || 500).json({
-      error: err.message || 'Internal server error',
-      code: err.code || 'INTERNAL_ERROR'
+    const status = err.status || 500;
+    const isClientError = status >= 400 && status < 500;
+    res.status(status).json({
+      error: isClientError ? err.message : 'Internal server error',
+      code: err.code || (status === 413 ? 'PAYLOAD_TOO_LARGE' : 'INTERNAL_ERROR')
     });
   }
 });

@@ -104,7 +104,13 @@ Setting up real Ceph, GlusterFS, or AWS multi-region clusters requires substanti
 - **Cryptographic SHA-256 Verification**: Guarantees bit-level file integrity; corrupt data is never served to clients.
 - **Interactive Chaos Engineering**: One-click simulated hardware crashes and simulated bit-rot injection directly from the UI.
 - **Live Hacker Telemetry Dashboard**: Real-time event log terminal showing heartbeat checks, ingestion pipelines, failover alerts, and disk partition stats.
-- **Zero External Dependencies**: Runs without Docker, PostgreSQL, Redis, or cloud storage SDKs.
+- **Lightweight Deployment**: Runs without Docker, PostgreSQL, Redis, or cloud storage SDKs.
+
+## 🔐 Security and deployment scope
+
+Vault is an educational single-process simulation, not production object storage. The demo accounts and passwords are intentionally fixed in the source, sessions and metadata are held in process memory, and the storage directories are local to the instance. Do not upload sensitive data or expose this demo as a production service. A production design needs managed identity/password storage, durable shared object storage and metadata, persistent rate limiting, audit controls, and a multi-instance storage architecture.
+
+The service adds standard HTTP security headers, authentication and per-user object access checks, admin-only cluster controls, bounded request/upload parsing, and login/upload rate limits. Uploaded files and catalogs are runtime data and should not be committed.
 
 ---
 
@@ -115,9 +121,9 @@ Setting up real Ceph, GlusterFS, or AWS multi-region clusters requires substanti
 | **Runtime** | Node.js (v18+) | Native JavaScript execution engine |
 | **Web Server** | Express.js | REST routing, static asset serving, middleware |
 | **File Ingestion** | Multer | Memory-buffered multi-part file uploads |
+| **HTTP Security** | Helmet, express-rate-limit | Secure response headers and request throttling |
 | **Cryptography** | Node.js `crypto` | SHA-256 hashing and UUID generation |
 | **Disk I/O** | Node.js `fs` & `path` | Partition directory creation and chunk persistence |
-| **Cross-Origin** | CORS | Cross-origin request headers |
 | **Frontend UI** | HTML5, CSS3, Vanilla JS | Dark-themed, cyber-style telemetry dashboard |
 | **Database** | In-Memory Catalog (Map) | Ephemeral metadata storage for ultra-fast lookup |
 
